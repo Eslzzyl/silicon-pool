@@ -1,5 +1,9 @@
 # 简介
 
+| ![Home Page](./images/home.jpg) | ![Keys Management](./images/keys.jpg) |
+| :---: | :---: |
+| 主页 | Key 管理页 |
+
 一个用于管理硅基流动 API Key 的本地工具。支持以下功能：
 - API Key 的批量导入，自动过滤无效的 Key
 - API Key 的批量导出（导出为 txt）
