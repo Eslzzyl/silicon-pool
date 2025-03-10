@@ -7,6 +7,7 @@
     <title>硅基 Key 池</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
     <style>
         textarea {
             width: 100%;
@@ -33,7 +34,6 @@
             opacity: 1;
         }
 
-        /* 策略选择相关样式 */
         .strategy-select {
             margin: 1rem 0;
             text-align: center;
@@ -110,29 +110,6 @@
     </div>
 
     <script>
-        function maskKey(key) {
-            // 显示密钥的前8个字符和后4个字符，中间用***替代
-            if (key.length > 12) {
-                return `${key.substring(0, 8)}***${key.substring(key.length - 4)}`;
-            }
-            return key;
-        }
-
-        async function showMessage(text, type = 'success') {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = text;
-            messageEl.className = type;
-            messageEl.style.display = 'block';
-            setTimeout(() => messageEl.style.display = 'none', 3000);
-        }
-
-        async function fetchStats() {
-            const response = await fetch("/stats");
-            const data = await response.json();
-            document.getElementById("keyCount").textContent = data.key_count;
-            document.getElementById("totalBalance").textContent = data.total_balance;
-        }
-
         async function importKeys() {
             document.getElementById("message").style.display = 'block';
             document.getElementById("message").textContent = "正在导入，请稍候...";
@@ -144,14 +121,6 @@
             });
             const data = await response.json();
             showMessage(data.message, response.ok ? "success" : "error");
-            fetchStats();
-        }
-
-        async function refreshKeys() {
-            showMessage("正在刷新，请稍候...", "success");
-            const response = await fetch("/refresh", { method: "POST" });
-            const data = await response.json();
-            showMessage(data.message, "success");
             fetchStats();
         }
 
@@ -185,19 +154,9 @@
                 `;
                 tbody.appendChild(tr);
             });
-            // Update pagination buttons
-            const paginationDiv = document.getElementById("pagination");
-            paginationDiv.innerHTML = "";
-            const totalPages = Math.ceil(data.total / data.page_size);
-            for (let i = 1; i <= totalPages; i++) {
-                const btn = document.createElement("button");
-                btn.textContent = i;
-                if (i === data.page) {
-                    btn.disabled = true;
-                }
-                btn.onclick = () => fetchLogs(i);
-                paginationDiv.appendChild(btn);
-            }
+
+            // 更新改进后的分页系统
+            renderPagination(data.page, Math.ceil(data.total / data.page_size), fetchLogs);
         }
 
         async function clearLogs() {

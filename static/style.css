@@ -49,7 +49,7 @@ button.primary {
 }
 
 button.secondary {
-    background-color: #64748b;
+    background-color: var(--primary-color);
     color: white;
 }
 
@@ -160,6 +160,96 @@ tr:nth-child(even) {
     cursor: default;
 }
 
+.key-actions {
+    display: flex;
+    gap: 0.3rem;
+    justify-content: center;
+}
+
+.key-actions button {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+    border-radius: 4px;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.pagination button {
+    min-width: 2rem;
+    height: 2rem;
+    text-align: center;
+    line-height: 1;
+}
+
+.page-jump {
+    display: flex;
+    align-items: center;
+    margin-left: 1rem;
+}
+
+.page-jump input {
+    padding: 1rem;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.page-jump button {
+    min-width: auto;
+    padding: 0.3rem 0.7rem;
+}
+
+.ellipsis {
+    margin: 0 0.5rem;
+}
+
+.copy-success {
+    background-color: var(--success-color) !important;
+    color: white !important;
+}
+
+.icon-button {
+    background-color: transparent;
+    color: #64748b;
+    font-size: 1.2rem;
+    padding: 0.3rem;
+    min-width: 2rem;
+    height: 2rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.icon-button:hover {
+    background-color: rgba(203, 213, 225, 0.3);
+    color: var(--primary-color);
+    transform: none;
+    box-shadow: none;
+}
+
+.icon-button.danger {
+    color: #64748b;
+}
+
+.icon-button.danger:hover {
+    color: var(--danger-color);
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.icon-button.copy-success {
+    background-color: transparent !important;
+    color: var(--success-color) !important;
+}
+
 @media (max-width: 768px) {
     body {
         padding: 1rem;
@@ -172,5 +262,9 @@ tr:nth-child(even) {
     th,
     td {
         padding: 0.6rem;
+    }
+
+    .key-cell {
+        max-width: 120px;
     }
 }

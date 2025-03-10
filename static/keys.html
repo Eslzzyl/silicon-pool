@@ -7,6 +7,7 @@
     <title>硅基 Key 池 - 密钥管理</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
     <style>
         th::after {
             content: "";
@@ -46,27 +47,17 @@
             border: 1px solid #cbd5e1;
         }
 
+        #keysTable .icon-button {
+            min-width: 1.5rem;
+            height: 1.5rem;
+            padding: 0.1rem;
+            box-shadow: none;
+        }
+
         .key-actions {
             display: flex;
             gap: 0.5rem;
-            justify-content: flex-start;
-        }
-
-        .key-actions button {
-            padding: 0.3rem 0.7rem;
-            font-size: 0.8rem;
-            border-radius: 4px;
-        }
-
-        .copy-success {
-            background-color: var(--success-color) !important;
-            color: white !important;
-        }
-
-        @media (max-width: 768px) {
-            .key-cell {
-                max-width: 120px;
-            }
+            justify-content: center;
         }
     </style>
 </head>
@@ -116,21 +107,6 @@
     <div class="pagination" id="pagination"></div>
 
     <script>
-        async function showMessage(text, type = 'success') {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = text;
-            messageEl.className = type;
-            messageEl.style.display = 'block';
-            setTimeout(() => messageEl.style.display = 'none', 3000);
-        }
-
-        async function fetchStats() {
-            const response = await fetch("/stats");
-            const data = await response.json();
-            document.getElementById("keyCount").textContent = data.key_count;
-            document.getElementById("totalBalance").textContent = data.total_balance;
-        }
-
         async function fetchKeys(page = 1) {
             const sortField = document.getElementById('sortField').value;
             const sortOrder = document.getElementById('sortOrder').value;
@@ -169,9 +145,9 @@
                         <td>¥ ${key.balance.toFixed(2)}</td>
                         <td>${key.usage_count}</td>
                         <td class="key-actions">
-                            <button class="secondary copy-btn" data-key="${key.key}">复制</button>
-                            <button class="secondary" onclick="refreshSingleKey('${key.key}')">刷新</button>
-                            <button class="danger" onclick="deleteKey('${key.key}')">删除</button>
+                            <span class="icon-button copy-btn" data-key="${key.key}" title="复制密钥" onclick="copyToClipboard('${key.key}', this)">📋</span>
+                            <span class="icon-button" onclick="refreshSingleKey('${key.key}')" title="刷新密钥">🔄</span>
+                            <span class="icon-button danger" onclick="deleteKey('${key.key}')" title="删除密钥">🗑️</span>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -185,63 +161,10 @@
                     });
                 });
 
-                // 更新分页按钮
-                const paginationDiv = document.getElementById("pagination");
-                paginationDiv.innerHTML = "";
-                const totalPages = Math.ceil(data.total / data.page_size);
-                for (let i = 1; i <= totalPages; i++) {
-                    const btn = document.createElement("button");
-                    btn.textContent = i;
-                    if (i === data.page) {
-                        btn.disabled = true;
-                    }
-                    btn.onclick = () => fetchKeys(i);
-                    paginationDiv.appendChild(btn);
-                }
+                // 使用改进后的分页系统
+                renderPagination(data.page, Math.ceil(data.total / data.page_size), fetchKeys);
             } catch (error) {
                 showMessage(`获取密钥列表失败: ${error.message}`, 'error');
-            }
-        }
-
-        function maskKey(key) {
-            // 显示密钥的前8个字符和后4个字符，中间用***替代
-            if (key.length > 12) {
-                return `${key.substring(0, 8)}***${key.substring(key.length - 4)}`;
-            }
-            return key;
-        }
-
-        async function copyToClipboard(text, buttonElement) {
-            try {
-                await navigator.clipboard.writeText(text);
-
-                // 更改按钮样式以显示成功
-                const originalText = buttonElement.textContent;
-                const originalClass = buttonElement.className;
-
-                buttonElement.textContent = '已复制✓';
-                buttonElement.classList.add('copy-success');
-
-                // 1.5秒后恢复按钮样式
-                setTimeout(() => {
-                    buttonElement.textContent = originalText;
-                    buttonElement.className = originalClass;
-                }, 1500);
-            } catch (err) {
-                showMessage('复制失败，请手动复制', 'error');
-            }
-        }
-
-        async function refreshKeys() {
-            showMessage("正在刷新所有密钥，请稍候...", "success");
-            try {
-                const response = await fetch("/refresh", { method: "POST" });
-                const data = await response.json();
-                showMessage(data.message, "success");
-                fetchStats();
-                fetchKeys();
-            } catch (error) {
-                showMessage(`刷新失败: ${error.message}`, 'error');
             }
         }
 
