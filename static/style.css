@@ -1,6 +1,6 @@
 :root {
     --primary-color: #2563eb;
-    --secondary-color: #3b82f6;
+    --secondary-color: #7390c0;
     --success-color: #10b981;
     --danger-color: #ef4444;
     --background-color: #f8fafc;
@@ -49,7 +49,7 @@ button.primary {
 }
 
 button.secondary {
-    background-color: var(--primary-color);
+    background-color: var(--secondary-color);
     color: white;
 }
 
@@ -194,15 +194,20 @@ tr:nth-child(even) {
 }
 
 .page-jump input {
-    padding: 1rem;
-    border: 2px solid #cbd5e1;
-    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    width: 50px;
+    font-size: 0.9rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
 }
 
 .page-jump button {
     min-width: auto;
     padding: 0.3rem 0.7rem;
+    margin-left: 1rem;
 }
 
 .ellipsis {
