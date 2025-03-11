@@ -204,13 +204,16 @@ async def refresh_keys():
     # Calculate new total balance
     cursor.execute("SELECT COALESCE(SUM(balance), 0) FROM api_keys")
     new_balance = cursor.fetchone()[0]
-    balance_decrease = initial_balance - new_balance
+    balance_change = new_balance - initial_balance
 
-    return JSONResponse(
-        {
-            "message": f"刷新完成，共移除 {removed} 个余额用尽或无效的 Key，余额减少了{round(balance_decrease, 2)}"
-        }
-    )
+    message = ""
+    if balance_change > 0:
+        message = f"刷新完成，共移除 {removed} 个余额用尽或无效的 Key，余额增加了{round(balance_change, 2)}"
+    else:
+        balance_decrease = abs(balance_change)
+        message = f"刷新完成，共移除 {removed} 个余额用尽或无效的 Key，余额减少了{round(balance_decrease, 2)}"
+
+    return JSONResponse({"message": message})
 
 
 def select_api_key(keys_with_balance):
