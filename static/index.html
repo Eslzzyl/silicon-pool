@@ -76,7 +76,7 @@
 
     <div class="button-group">
         <button class="primary" onclick="importKeys()">📥 导入 Key</button>
-        <button class="secondary" onclick="refreshKeys()">🔄 刷新</button>
+        <button class="secondary" onclick="refreshKeys()">🔄 刷新余额</button>
         <button class="secondary" onclick="exportKeys()">📤 导出为 TXT</button>
         <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
         <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
@@ -107,6 +107,7 @@
     <div class="pagination" id="pagination"></div>
 
     <div class="button-group">
+        <button class="secondary" onclick="fetchLogs()">🔄 刷新日志</button>
         <button class="danger" onclick="clearLogs()">🗑️ 清空日志</button>
     </div>
 
