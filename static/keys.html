@@ -59,6 +59,30 @@
             gap: 0.5rem;
             justify-content: center;
         }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-enabled {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .status-disabled {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .toggle-button {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -83,6 +107,8 @@
             <option value="add_time">添加时间</option>
             <option value="balance">余额</option>
             <option value="usage_count">使用次数</option>
+            <option value="enabled">启用状态</option>
+            <option value="key">Key 名</option>
         </select>
         <label for="sortOrder" style="margin-left: 1rem;">排序方向:</label>
         <select id="sortOrder" onchange="fetchKeys()">
@@ -98,6 +124,7 @@
                 <th>添加时间</th>
                 <th>余额</th>
                 <th>使用次数</th>
+                <th>状态</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -113,7 +140,7 @@
 
             document.querySelector("#keysTable tbody").innerHTML = `
                 <tr>
-                    <td colspan="5" style="padding: 2rem; color: #64748b; text-align: center;">
+                    <td colspan="6" style="padding: 2rem; color: #64748b; text-align: center;">
                         ⏳ 正在加载密钥数据...
                     </td>
                 </tr>
@@ -128,7 +155,7 @@
                 if (data.keys.length === 0) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="5" style="padding: 2rem; color: #64748b; text-align: center;">
+                            <td colspan="6" style="padding: 2rem; color: #64748b; text-align: center;">
                                 没有找到密钥数据
                             </td>
                         </tr>
@@ -139,14 +166,26 @@
                 data.keys.forEach(key => {
                     const tr = document.createElement("tr");
                     const dt = new Date(key.add_time * 1000);
+
+                    // 根据key的启用状态设置显示
+                    const statusBadge = key.enabled
+                        ? '<span class="status-badge status-enabled">启用</span>'
+                        : '<span class="status-badge status-disabled">禁用</span>';
+
+                    const toggleButton = key.enabled
+                        ? `<span class="icon-button" onclick="toggleKey('${key.key}', false)" title="禁用">🚫</span>`
+                        : `<span class="icon-button" onclick="toggleKey('${key.key}', true)" title="启用">✅</span>`;
+
                     tr.innerHTML = `
                         <td class="key-cell" title="${key.key}">${maskKey(key.key)}</td>
                         <td>${dt.toLocaleString()}</td>
                         <td>¥ ${key.balance.toFixed(2)}</td>
                         <td>${key.usage_count}</td>
+                        <td>${statusBadge}</td>
                         <td class="key-actions">
                             <span class="icon-button copy-btn" data-key="${key.key}" title="复制密钥" onclick="copyToClipboard('${key.key}', this)">📋</span>
                             <span class="icon-button" onclick="refreshSingleKey('${key.key}')" title="刷新密钥">🔄</span>
+                            ${toggleButton}
                             <span class="icon-button danger" onclick="deleteKey('${key.key}')" title="删除密钥">🗑️</span>
                         </td>
                     `;
@@ -200,6 +239,25 @@
                 fetchKeys();
             } catch (error) {
                 showMessage(`删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function toggleKey(key, enabled) {
+            const action = enabled ? "启用" : "禁用";
+            if (!confirm(`确定要${action}密钥 ${maskKey(key)} 吗？`)) return;
+
+            try {
+                const response = await fetch("/api/toggle_key", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key, enabled })
+                });
+                const data = await response.json();
+                showMessage(data.message, "success");
+                fetchStats();
+                fetchKeys();
+            } catch (error) {
+                showMessage(`${action}失败: ${error.message}`, 'error');
             }
         }
 

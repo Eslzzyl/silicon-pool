@@ -48,10 +48,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
     key TEXT PRIMARY KEY,
     add_time REAL,
     balance REAL,
-    usage_count INTEGER
+    usage_count INTEGER,
+    enabled INTEGER DEFAULT 1
 )
 """)
 conn.commit()
+
 
 # Create logs table for recording completion calls
 cursor.execute("""
@@ -89,7 +91,7 @@ async def validate_key_async(api_key: str):
 
 def insert_api_key(api_key: str, balance: float):
     cursor.execute(
-        "INSERT OR IGNORE INTO api_keys (key, add_time, balance, usage_count) VALUES (?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO api_keys (key, add_time, balance, usage_count, enabled) VALUES (?, ?, ?, ?, 1)",
         (api_key, time.time(), balance, 0),
     )
     conn.commit()
@@ -221,28 +223,40 @@ def select_api_key(keys_with_balance):
     if not keys_with_balance:
         return None
 
+    # 只选择启用的 key
+    cursor.execute(
+        "SELECT key, balance FROM api_keys WHERE key IN ({}) AND enabled = 1".format(
+            ",".join("?" for _ in range(len(keys_with_balance)))
+        ),
+        [k[0] for k in keys_with_balance],
+    )
+    enabled_keys = cursor.fetchall()
+
+    if not enabled_keys:
+        return None
+
     # 基于余额的策略
     if config.CALL_STRATEGY == "high":
-        return max(keys_with_balance, key=lambda x: x[1])[0]
+        return max(enabled_keys, key=lambda x: x[1])[0]
     elif config.CALL_STRATEGY == "low":
-        return min(keys_with_balance, key=lambda x: x[1])[0]
+        return min(enabled_keys, key=lambda x: x[1])[0]
 
     # 基于使用次数的策略
     elif config.CALL_STRATEGY == "least_used":
         cursor.execute(
-            "SELECT key, usage_count FROM api_keys WHERE key IN ({})".format(
-                ",".join("?" for _ in range(len(keys_with_balance)))
+            "SELECT key, usage_count FROM api_keys WHERE key IN ({}) AND enabled = 1".format(
+                ",".join("?" for _ in range(len(enabled_keys)))
             ),
-            [k[0] for k in keys_with_balance],
+            [k[0] for k in enabled_keys],
         )
         usage_data = cursor.fetchall()
         return min(usage_data, key=lambda x: x[1])[0]
     elif config.CALL_STRATEGY == "most_used":
         cursor.execute(
-            "SELECT key, usage_count FROM api_keys WHERE key IN ({})".format(
-                ",".join("?" for _ in range(len(keys_with_balance)))
+            "SELECT key, usage_count FROM api_keys WHERE key IN ({}) AND enabled = 1".format(
+                ",".join("?" for _ in range(len(enabled_keys)))
             ),
-            [k[0] for k in keys_with_balance],
+            [k[0] for k in enabled_keys],
         )
         usage_data = cursor.fetchall()
         return max(usage_data, key=lambda x: x[1])[0]
@@ -250,26 +264,26 @@ def select_api_key(keys_with_balance):
     # 基于添加时间的策略
     elif config.CALL_STRATEGY == "oldest":
         cursor.execute(
-            "SELECT key, add_time FROM api_keys WHERE key IN ({})".format(
-                ",".join("?" for _ in range(len(keys_with_balance)))
+            "SELECT key, add_time FROM api_keys WHERE key IN ({}) AND enabled = 1".format(
+                ",".join("?" for _ in range(len(enabled_keys)))
             ),
-            [k[0] for k in keys_with_balance],
+            [k[0] for k in enabled_keys],
         )
         time_data = cursor.fetchall()
         return min(time_data, key=lambda x: x[1])[0]
     elif config.CALL_STRATEGY == "newest":
         cursor.execute(
-            "SELECT key, add_time FROM api_keys WHERE key IN ({})".format(
-                ",".join("?" for _ in range(len(keys_with_balance)))
+            "SELECT key, add_time FROM api_keys WHERE key IN ({}) AND enabled = 1".format(
+                ",".join("?" for _ in range(len(enabled_keys)))
             ),
-            [k[0] for k in keys_with_balance],
+            [k[0] for k in enabled_keys],
         )
         time_data = cursor.fetchall()
         return max(time_data, key=lambda x: x[1])[0]
 
     # 默认随机策略
     else:
-        return random.choice(keys_with_balance)[0]
+        return random.choice(enabled_keys)[0]
 
 
 async def check_and_remove_key(key: str):
@@ -293,11 +307,13 @@ async def chat_completions(request: Request, background_tasks: BackgroundTasks):
         request_api_key = request.headers.get("Authorization")
         if request_api_key != f"Bearer {config.CUSTOM_API_KEY}":
             raise HTTPException(status_code=403, detail="无效的API_KEY")
-    cursor.execute("SELECT key, balance FROM api_keys")
+    cursor.execute("SELECT key, balance FROM api_keys WHERE enabled = 1")
     keys_with_balance = cursor.fetchall()
     if not keys_with_balance:
         raise HTTPException(status_code=500, detail="没有可用的api-key")
     selected = select_api_key(keys_with_balance)
+    if not selected:
+        raise HTTPException(status_code=500, detail="没有可用的api-key")
     # Increase usage count
     cursor.execute(
         "UPDATE api_keys SET usage_count = usage_count + 1 WHERE key = ?", (selected,)
@@ -405,11 +421,13 @@ async def embeddings(request: Request, background_tasks: BackgroundTasks):
         request_api_key = request.headers.get("Authorization")
         if request_api_key != f"Bearer {config.CUSTOM_API_KEY}":
             raise HTTPException(status_code=403, detail="无效的API_KEY")
-    cursor.execute("SELECT key, balance FROM api_keys")
+    cursor.execute("SELECT key, balance FROM api_keys WHERE enabled = 1")
     keys_with_balance = cursor.fetchall()
     if not keys_with_balance:
         raise HTTPException(status_code=500, detail="没有可用的api-key")
     selected = select_api_key(keys_with_balance)
+    if not selected:
+        raise HTTPException(status_code=500, detail="没有可用的api-key")
     forward_headers = dict(request.headers)
     forward_headers["Authorization"] = f"Bearer {selected}"
     try:
@@ -435,12 +453,14 @@ async def completions(request: Request, background_tasks: BackgroundTasks):
         if request_api_key != f"Bearer {config.CUSTOM_API_KEY}":
             raise HTTPException(status_code=403, detail="无效的API_KEY")
 
-    cursor.execute("SELECT key, balance FROM api_keys")
+    cursor.execute("SELECT key, balance FROM api_keys WHERE enabled = 1")
     keys_with_balance = cursor.fetchall()
     if not keys_with_balance:
         raise HTTPException(status_code=500, detail="没有可用的api-key")
 
     selected = select_api_key(keys_with_balance)
+    if not selected:
+        raise HTTPException(status_code=500, detail="没有可用的api-key")
     # Increase usage count
     cursor.execute(
         "UPDATE api_keys SET usage_count = usage_count + 1 WHERE key = ?", (selected,)
@@ -547,11 +567,13 @@ async def completions(request: Request, background_tasks: BackgroundTasks):
 
 @app.get("/v1/models")
 async def list_models(request: Request):
-    cursor.execute("SELECT key, balance FROM api_keys")
+    cursor.execute("SELECT key, balance FROM api_keys WHERE enabled = 1")
     keys_with_balance = cursor.fetchall()
     if not keys_with_balance:
         raise HTTPException(status_code=500, detail="没有可用的api-key")
     selected = select_api_key(keys_with_balance)
+    if not selected:
+        raise HTTPException(status_code=500, detail="没有可用的api-key")
     forward_headers = dict(request.headers)
     forward_headers["Authorization"] = f"Bearer {selected}"
     try:
@@ -710,7 +732,7 @@ async def options_completions():
 async def get_keys(
     page: int = 1, sort_field: str = "add_time", sort_order: str = "desc"
 ):
-    allowed_fields = ["add_time", "balance", "usage_count"]
+    allowed_fields = ["add_time", "balance", "usage_count", "enabled", "key"]
     allowed_orders = ["asc", "desc"]
 
     if sort_field not in allowed_fields:
@@ -725,7 +747,7 @@ async def get_keys(
     total = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT key, add_time, balance, usage_count FROM api_keys ORDER BY {sort_field} {sort_order} LIMIT ? OFFSET ?",
+        f"SELECT key, add_time, balance, usage_count, enabled FROM api_keys ORDER BY {sort_field} {sort_order} LIMIT ? OFFSET ?",
         (page_size, offset),
     )
     keys = cursor.fetchall()
@@ -737,6 +759,7 @@ async def get_keys(
             "add_time": row[1],
             "balance": row[2],
             "usage_count": row[3],
+            "enabled": bool(row[4]),
         }
         for row in keys
     ]
@@ -785,6 +808,30 @@ async def delete_key(request: Request):
         return JSONResponse({"message": "密钥已成功删除"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除密钥失败: {str(e)}")
+
+
+# 新增接口：切换 API Key 的启用状态
+@app.post("/api/toggle_key")
+async def toggle_key(request: Request):
+    data = await request.json()
+    key = data.get("key")
+    enabled = data.get("enabled")
+
+    if not key:
+        raise HTTPException(status_code=400, detail="未提供API密钥")
+
+    if enabled is None:
+        raise HTTPException(status_code=400, detail="未提供启用状态")
+
+    try:
+        cursor.execute(
+            "UPDATE api_keys SET enabled = ? WHERE key = ?", (1 if enabled else 0, key)
+        )
+        conn.commit()
+        status = "启用" if enabled else "禁用"
+        return JSONResponse({"message": f"密钥已成功{status}"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新密钥状态失败: {str(e)}")
 
 
 if __name__ == "__main__":
