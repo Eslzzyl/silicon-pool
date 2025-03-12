@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硅基 Key 池 - 调用日志</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+    <style>
+        .filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 500;
+            color: #334155;
+        }
+
+        .filter-select {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            background-color: white;
+            min-width: 150px;
+        }
+
+        .filter-button {
+            margin-left: auto;
+            padding: 0.5rem 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .filter-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .filter-item {
+                justify-content: space-between;
+            }
+
+            .filter-button {
+                margin: 0.5rem 0 0 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>📝 API 调用日志</h1>
+
+    <div class="button-group">
+        <button class="primary" onclick="window.location.href='/'">🏠 返回主页</button>
+        <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
+        <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
+    </div>
+
+    <div class="button-group">
+        <button class="secondary" onclick="fetchLogs()">🔄 刷新日志</button>
+        <button class="danger" onclick="clearLogs()">🗑️ 清空日志</button>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="filter-container">
+        <div class="filter-item">
+            <span class="filter-label">日期过滤:</span>
+            <select id="dateFilter" class="filter-select" onchange="applyFilters()">
+                <option value="all">所有日期</option>
+                <option value="today">仅今天</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <span class="filter-label">模型过滤:</span>
+            <select id="modelFilter" class="filter-select" onchange="applyFilters()">
+                <option value="all">所有模型</option>
+                <!-- 模型选项将动态加载 -->
+            </select>
+        </div>
+    </div>
+
+    <table id="logsTable">
+        <thead>
+            <tr>
+                <th>使用的 Key</th>
+                <th>模型</th>
+                <th>调用时间</th>
+                <th>输入 Token</th>
+                <th>输出 Token</th>
+                <th>总 Token</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+        let currentFilters = {
+            page: 1,
+            dateFilter: 'all',
+            model: 'all'
+        };
+
+        // 加载模型列表
+        async function loadModelOptions() {
+            try {
+                const response = await fetch('/logs?page=1');
+                const data = await response.json();
+
+                if (data.available_models && data.available_models.length > 0) {
+                    const modelSelect = document.getElementById('modelFilter');
+                    // 保留"所有模型"选项
+                    const allOption = modelSelect.options[0];
+                    modelSelect.innerHTML = '';
+                    modelSelect.appendChild(allOption);
+
+                    // 添加所有可用模型
+                    data.available_models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        modelSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载模型列表失败:', error);
+            }
+        }
+
+        // 应用过滤条件
+        function applyFilters() {
+            const dateFilter = document.getElementById('dateFilter').value;
+            const model = document.getElementById('modelFilter').value;
+
+            currentFilters = {
+                page: 1, // 重置到第一页
+                dateFilter: dateFilter,
+                model: model
+            };
+
+            fetchLogs();
+        }
+
+        // Logs fetching and pagination with filters
+        async function fetchLogs(page = 1) {
+            // 更新当前页码
+            currentFilters.page = page;
+
+            document.querySelector("#logsTable tbody").innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 2rem; color: #64748b;">
+                        ⏳ 正在加载日志...
+                    </td>
+                </tr>
+            `;
+
+            const url = `/logs?page=${currentFilters.page}&date_filter=${currentFilters.dateFilter}&model=${currentFilters.model}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            const tbody = document.querySelector("#logsTable tbody");
+            tbody.innerHTML = "";
+
+            if (data.logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 2rem; color: #64748b; text-align: center;">
+                            暂无符合条件的日志记录
+                        </td>
+                    </tr>
+                `;
+                document.getElementById("pagination").innerHTML = "";
+                return;
+            }
+
+            data.logs.forEach(log => {
+                const tr = document.createElement("tr");
+                const dt = new Date(log.call_time * 1000);
+                tr.innerHTML = `
+                    <td class="key-cell" title="${log.used_key}">${maskKey(log.used_key)}</td>
+                    <td>${log.model}</td>
+                    <td>${dt.toLocaleString()}</td>
+                    <td>${log.input_tokens}</td>
+                    <td>${log.output_tokens}</td>
+                    <td>${log.total_tokens}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 更新改进后的分页系统
+            renderPagination(data.page, Math.ceil(data.total / data.page_size), (newPage) => fetchLogs(newPage));
+        }
+
+        async function clearLogs() {
+            if (!confirm("确定要清空所有日志吗？此操作无法撤销。")) return;
+            const response = await fetch("/clear_logs", { method: "POST" });
+            const data = await response.json();
+            showMessage(data.message, "success");
+            fetchLogs();
+            // 重新加载模型列表
+            loadModelOptions();
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function () {
+            // 加载模型列表
+            loadModelOptions();
+            // 加载日志
+            fetchLogs();
+        });
+    </script>
+</body>
+
+</html>

@@ -35,16 +35,24 @@
             justify-content: flex-end;
             align-items: center;
             margin-bottom: 1rem;
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
         }
 
         .sort-options label {
             margin-right: 0.5rem;
+            font-weight: 500;
+            color: #334155;
         }
 
         .sort-options select {
-            padding: 0.3rem 0.5rem;
+            padding: 0.5rem;
             border-radius: 4px;
             border: 1px solid #cbd5e1;
+            background-color: white;
+            min-width: 150px;
         }
 
         #keysTable .icon-button {
@@ -95,9 +103,13 @@
     </div>
 
     <div class="button-group">
-        <button class="secondary" onclick="refreshKeys()">🔄 刷新所有密钥</button>
-        <button class="secondary" onclick="window.location.href='/'">⬅️ 返回主页</button>
+        <button class="primary" onclick="window.location.href='/'">🏠 返回主页</button>
         <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
+        <button class="secondary" onclick="window.location.href='/static/logs.html'">📝 调用日志</button>
+    </div>
+
+    <div class="button-group">
+        <button class="secondary" onclick="refreshKeys()">🔄 刷新所有密钥</button>
     </div>
 
     <div id="message"></div>

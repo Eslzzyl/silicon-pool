@@ -68,18 +68,22 @@
             <input type="text" id="customApiKey" placeholder="留空表示不使用"
                 style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px;">
             <button class="primary" onclick="updateCustomApiKey()"
-                style="padding:0.5rem 1rem; font-size:0.9rem; height:35px; line-height:1;">保存</button>
+                style="padding:0.5rem 1rem; font-size:0.9rem; height:35px; line-height:1; margin-left: 1rem;">保存</button>
         </div>
     </div>
 
     <textarea id="keys" placeholder="请每行输入一个 API Key..."></textarea>
 
     <div class="button-group">
+        <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
+        <button class="secondary" onclick="window.location.href='/static/logs.html'">📝 调用日志</button>
+        <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
+    </div>
+
+    <div class="button-group">
         <button class="primary" onclick="importKeys()">📥 导入 Key</button>
         <button class="secondary" onclick="refreshKeys()">🔄 刷新余额</button>
         <button class="secondary" onclick="exportKeys()">📤 导出为 TXT</button>
-        <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
-        <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
     </div>
 
     <div id="message"></div>
@@ -87,28 +91,6 @@
     <div id="stats">
         📊 当前 Key 数量：<span id="keyCount">0</span> 个
         | 余额总量：¥ <span id="totalBalance">0</span>
-    </div>
-
-    <h2>📝 最近调用日志</h2>
-    <table id="logsTable">
-        <thead>
-            <tr></tr>
-            <th>使用的 Key</th>
-            <th>模型</th>
-            <th>调用时间</th>
-            <th>输入 Token</th>
-            <th>输出 Token</th>
-            <th>总 Token</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div class="pagination" id="pagination"></div>
-
-    <div class="button-group">
-        <button class="secondary" onclick="fetchLogs()">🔄 刷新日志</button>
-        <button class="danger" onclick="clearLogs()">🗑️ 清空日志</button>
     </div>
 
     <script>
@@ -128,45 +110,6 @@
 
         function exportKeys() {
             window.location.href = "/export_keys";
-        }
-
-        // Logs fetching and pagination
-        async function fetchLogs(page = 1) {
-            document.querySelector("#logsTable tbody").innerHTML = `
-                <tr>
-                    <td colspan="6" style="padding: 2rem; color: #64748b;">
-                        ⏳ 正在加载日志...
-                    </td>
-                </tr>
-            `;
-            const response = await fetch(`/logs?page=${page}`);
-            const data = await response.json();
-            const tbody = document.querySelector("#logsTable tbody");
-            tbody.innerHTML = "";
-            data.logs.forEach(log => {
-                const tr = document.createElement("tr");
-                const dt = new Date(log.call_time * 1000);
-                tr.innerHTML = `
-                    <td class="key-cell" title="${log.used_key}">${maskKey(log.used_key)}</td>
-                    <td>${log.model}</td>
-                    <td>${dt.toLocaleString()}</td>
-                    <td>${log.input_tokens}</td>
-                    <td>${log.output_tokens}</td>
-                    <td>${log.total_tokens}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // 更新改进后的分页系统
-            renderPagination(data.page, Math.ceil(data.total / data.page_size), fetchLogs);
-        }
-
-        async function clearLogs() {
-            if (!confirm("确定要清空所有日志吗？此操作无法撤销。")) return;
-            const response = await fetch("/clear_logs", { method: "POST" });
-            const data = await response.json();
-            alert(data.message);
-            fetchLogs();
         }
 
         async function loadStrategy() {
@@ -208,9 +151,7 @@
         loadStrategy();
         loadCustomApiKey();
 
-        // Update stats and logs on page load
         fetchStats();
-        fetchLogs();
     </script>
 </body>
 
