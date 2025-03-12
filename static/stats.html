@@ -161,14 +161,30 @@
             outputTokens: 'rgba(25, 25, 112, 0.7)'
         };
 
-        // 为饼图生成随机颜色
-        function generatePieColors(count) {
-            const pieColors = [];
-            for (let i = 0; i < count; i++) {
-                const hue = (i * 137.5) % 360; // 使用黄金比例分配色调以确保颜色多样性
-                pieColors.push(`hsl(${hue}, 70%, 60%)`);
+        // 模型颜色映射
+        const modelColorMap = {};
+
+        // 为特定模型生成或获取颜色
+        function getModelColor(modelName) {
+            // 如果模型已有指定颜色，则使用已有颜色
+            if (modelColorMap[modelName]) {
+                return modelColorMap[modelName];
             }
-            return pieColors;
+
+            // 为新模型生成颜色
+            const hue = Math.random() * 360;
+            const saturation = 60 + Math.random() * 20;
+            const lightness = 80 + Math.random() * 10;
+            const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+            // 存储颜色映射
+            modelColorMap[modelName] = color;
+            return color;
+        }
+
+        // 为饼图获取模型颜色
+        function getModelColors(modelLabels) {
+            return modelLabels.map(label => getModelColor(label));
         }
 
         // 加载日小时统计数据
@@ -264,7 +280,7 @@
                 return;
             }
 
-            const pieColors = generatePieColors(labels.length);
+            const pieColors = getModelColors(labels);
 
             dailyModelsChart = new Chart(ctx, {
                 type: 'pie',
@@ -319,7 +335,7 @@
                 return;
             }
 
-            const pieColors = generatePieColors(labels.length);
+            const pieColors = getModelColors(labels);
 
             monthlyModelsChart = new Chart(ctx, {
                 type: 'pie',
