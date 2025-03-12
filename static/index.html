@@ -8,6 +8,7 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
     <style>
         textarea {
             width: 100%;
@@ -18,7 +19,8 @@
             border-radius: 8px;
             margin: 1rem 0;
             resize: vertical;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 1rem;
             transition: border-color 0.3s ease;
         }
 
@@ -31,6 +33,7 @@
         textarea::placeholder {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             color: #64748b;
+            font-size: 1rem;
             opacity: 1;
         }
 
@@ -48,49 +51,48 @@
 </head>
 
 <body>
-    <h1>🔑 硅基流动 Key 池</h1>
+    <!-- 导航栏 -->
+    <nav id="navbar"></nav>
 
-    <div class="settings-container" style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
-        <div class="strategy-select">
-            <label for="callStrategy">调用策略：</label>
-            <select id="callStrategy" onchange="updateStrategy()">
-                <option value="random">随机选择</option>
-                <option value="high">优先消耗余额最多</option>
-                <option value="low">优先消耗余额最少</option>
-                <option value="least_used">优先消耗使用次数最少</option>
-                <option value="most_used">优先消耗使用次数最多</option>
-                <option value="oldest">优先消耗添加时间最旧</option>
-                <option value="newest">优先消耗添加时间最新</option>
-            </select>
+    <div class="container">
+        <h1>主页</h1>
+
+        <div id="message"></div>
+
+        <div id="stats">
+            📊 当前 Key 数量：<span id="keyCount">0</span> 个
+            | 余额总量：¥ <span id="totalBalance">0</span>
         </div>
-        <div class="custom-key" style="text-align:center;">
-            <label for="customApiKey">自定义转发 API token：</label>
-            <input type="text" id="customApiKey" placeholder="留空表示不使用"
-                style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px;">
-            <button class="primary" onclick="updateCustomApiKey()"
-                style="padding:0.5rem 1rem; font-size:0.9rem; height:35px; line-height:1; margin-left: 1rem;">保存</button>
+
+        <div class="settings-container" style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
+            <div class="strategy-select">
+                <label for="callStrategy">调用策略：</label>
+                <select id="callStrategy" onchange="updateStrategy()">
+                    <option value="random">随机选择</option>
+                    <option value="high">优先消耗余额最多</option>
+                    <option value="low">优先消耗余额最少</option>
+                    <option value="least_used">优先消耗使用次数最少</option>
+                    <option value="most_used">优先消耗使用次数最多</option>
+                    <option value="oldest">优先消耗添加时间最旧</option>
+                    <option value="newest">优先消耗添加时间最新</option>
+                </select>
+            </div>
+            <div class="custom-key" style="text-align:center;">
+                <label for="customApiKey">自定义转发 API token：</label>
+                <input type="text" id="customApiKey" placeholder="留空表示不使用"
+                    style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px;">
+                <button class="primary" onclick="updateCustomApiKey()"
+                    style="padding:0.5rem 1rem; font-size:0.9rem; height:35px; line-height:1; margin-left: 1rem;">保存</button>
+            </div>
         </div>
-    </div>
 
-    <textarea id="keys" placeholder="请每行输入一个 API Key..."></textarea>
+        <textarea id="keys" placeholder="请每行输入一个 API Key..."></textarea>
 
-    <div class="button-group">
-        <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
-        <button class="secondary" onclick="window.location.href='/static/logs.html'">📝 调用日志</button>
-        <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
-    </div>
-
-    <div class="button-group">
-        <button class="primary" onclick="importKeys()">📥 导入 Key</button>
-        <button class="secondary" onclick="refreshKeys()">🔄 刷新余额</button>
-        <button class="secondary" onclick="exportKeys()">📤 导出为 TXT</button>
-    </div>
-
-    <div id="message"></div>
-
-    <div id="stats">
-        📊 当前 Key 数量：<span id="keyCount">0</span> 个
-        | 余额总量：¥ <span id="totalBalance">0</span>
+        <div class="button-group">
+            <button class="primary" onclick="importKeys()">📥 导入 Key</button>
+            <button class="secondary" onclick="refreshKeys()">🔄 刷新余额</button>
+            <button class="secondary" onclick="exportKeys()">📤 导出为 TXT</button>
+        </div>
     </div>
 
     <script>

@@ -8,6 +8,7 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .charts-container {
@@ -84,66 +85,62 @@
 </head>
 
 <body>
-    <h1>📊 调用统计分析</h1>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+            <h1>📊 调用统计分析</h1>
+            <button class="primary" onclick="refreshAllCharts()">🔄 刷新数据</button>
+        </div>
 
-    <div class="button-group">
-        <button class="primary" onclick="window.location.href='/'">🏠 返回主页</button>
-        <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
-        <button class="secondary" onclick="window.location.href='/static/logs.html'">📝 调用日志</button>
-    </div>
+        <div id="stats">
+            📊 今日调用次数：<span id="todayCalls">0</span> 次
+            | 今日消耗 Token：<span id="todayTokens">0</span> 个
+            | 本月调用次数：<span id="monthCalls">0</span> 次
+            | 本月消耗 Token：<span id="monthTokens">0</span> 个
+        </div>
 
-    <div class="button-group">
-        <button class="secondary" onclick="refreshAllCharts()">🔄 刷新数据</button>
-    </div>
-
-    <div id="stats">
-        📊 今日调用次数：<span id="todayCalls">0</span> 次
-        | 今日消耗 Token：<span id="todayTokens">0</span> 个
-        | 本月调用次数：<span id="monthCalls">0</span> 次
-        | 本月消耗 Token：<span id="monthTokens">0</span> 个
-    </div>
-
-    <div class="charts-container">
-        <div class="chart-wrapper">
-            <h3 class="chart-title">今日调用频率</h3>
-            <div class="chart-container">
-                <div id="hourlyCallsLoading" class="loading-spinner"></div>
-                <canvas id="hourlyCallsChart"></canvas>
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h3 class="chart-title">今日调用频率</h3>
+                <div class="chart-container">
+                    <div id="hourlyCallsLoading" class="loading-spinner"></div>
+                    <canvas id="hourlyCallsChart"></canvas>
+                </div>
             </div>
-        </div>
-        <div class="chart-wrapper">
-            <h3 class="chart-title">今日 Token 消耗</h3>
-            <div class="chart-container">
-                <div id="hourlyTokensLoading" class="loading-spinner"></div>
-                <canvas id="hourlyTokensChart"></canvas>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">今日 Token 消耗</h3>
+                <div class="chart-container">
+                    <div id="hourlyTokensLoading" class="loading-spinner"></div>
+                    <canvas id="hourlyTokensChart"></canvas>
+                </div>
             </div>
-        </div>
-        <div class="chart-wrapper">
-            <h3 class="chart-title">今日模型使用分布</h3>
-            <div class="chart-container">
-                <div id="dailyModelsLoading" class="loading-spinner"></div>
-                <canvas id="dailyModelsChart"></canvas>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">今日模型使用分布</h3>
+                <div class="chart-container">
+                    <div id="dailyModelsLoading" class="loading-spinner"></div>
+                    <canvas id="dailyModelsChart"></canvas>
+                </div>
             </div>
-        </div>
-        <div class="chart-wrapper">
-            <h3 class="chart-title">本月模型使用分布</h3>
-            <div class="chart-container">
-                <div id="monthlyModelsLoading" class="loading-spinner"></div>
-                <canvas id="monthlyModelsChart"></canvas>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">本月模型使用分布</h3>
+                <div class="chart-container">
+                    <div id="monthlyModelsLoading" class="loading-spinner"></div>
+                    <canvas id="monthlyModelsChart"></canvas>
+                </div>
             </div>
-        </div>
-        <div class="chart-wrapper">
-            <h3 class="chart-title">本月调用频率</h3>
-            <div class="chart-container">
-                <div id="dailyCallsLoading" class="loading-spinner"></div>
-                <canvas id="dailyCallsChart"></canvas>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">本月调用频率</h3>
+                <div class="chart-container">
+                    <div id="dailyCallsLoading" class="loading-spinner"></div>
+                    <canvas id="dailyCallsChart"></canvas>
+                </div>
             </div>
-        </div>
-        <div class="chart-wrapper">
-            <h3 class="chart-title">本月 Token 消耗</h3>
-            <div class="chart-container">
-                <div id="dailyTokensLoading" class="loading-spinner"></div>
-                <canvas id="dailyTokensChart"></canvas>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">本月 Token 消耗</h3>
+                <div class="chart-container">
+                    <div id="dailyTokensLoading" class="loading-spinner"></div>
+                    <canvas id="dailyTokensChart"></canvas>
+                </div>
             </div>
         </div>
     </div>

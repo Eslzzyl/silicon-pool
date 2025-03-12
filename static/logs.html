@@ -8,8 +8,9 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
     <style>
-        .filter-container {
+        .operation-container {
             display: flex;
             flex-wrap: wrap;
             gap: 1rem;
@@ -17,7 +18,7 @@
             background-color: #f8fafc;
             padding: 1rem;
             border-radius: 8px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             border: 1px solid #e2e8f0;
         }
 
@@ -40,13 +41,14 @@
             min-width: 150px;
         }
 
-        .filter-button {
+        .button-group {
             margin-left: auto;
-            padding: 0.5rem 1rem;
+            display: flex;
+            gap: 0.5rem;
         }
 
         @media (max-width: 768px) {
-            .filter-container {
+            .operation-container {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 0.5rem;
@@ -56,62 +58,66 @@
                 justify-content: space-between;
             }
 
-            .filter-button {
+            .button-group {
                 margin: 0.5rem 0 0 0;
                 width: 100%;
+                display: flex;
+                gap: 0.5rem;
+            }
+
+            .button-group button {
+                flex: 1;
             }
         }
     </style>
 </head>
 
 <body>
-    <h1>📝 API 调用日志</h1>
+    <!-- 导航栏 -->
+    <nav id="navbar"></nav>
 
-    <div class="button-group">
-        <button class="primary" onclick="window.location.href='/'">🏠 返回主页</button>
-        <button class="secondary" onclick="window.location.href='/static/keys.html'">🔐 密钥管理</button>
-        <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
-    </div>
+    <div class="container">
+        <h1>API 调用日志</h1>
 
-    <div class="button-group">
-        <button class="secondary" onclick="fetchLogs()">🔄 刷新日志</button>
-        <button class="danger" onclick="clearLogs()">🗑️ 清空日志</button>
-    </div>
+        <div id="message"></div>
 
-    <div id="message"></div>
-
-    <div class="filter-container">
-        <div class="filter-item">
-            <span class="filter-label">日期过滤:</span>
-            <select id="dateFilter" class="filter-select" onchange="applyFilters()">
-                <option value="all">所有日期</option>
-                <option value="today">仅今天</option>
-            </select>
+        <div class="operation-container">
+            <div class="filter-item">
+                <span class="filter-label">日期过滤:</span>
+                <select id="dateFilter" class="filter-select" onchange="applyFilters()">
+                    <option value="all">所有日期</option>
+                    <option value="today">仅今天</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <span class="filter-label">模型过滤:</span>
+                <select id="modelFilter" class="filter-select" onchange="applyFilters()">
+                    <option value="all">所有模型</option>
+                    <!-- 模型选项将动态加载 -->
+                </select>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="fetchLogs()">🔄 刷新日志</button>
+                <button class="danger" onclick="clearLogs()">🗑️ 清空日志</button>
+            </div>
         </div>
-        <div class="filter-item">
-            <span class="filter-label">模型过滤:</span>
-            <select id="modelFilter" class="filter-select" onchange="applyFilters()">
-                <option value="all">所有模型</option>
-                <!-- 模型选项将动态加载 -->
-            </select>
-        </div>
+
+        <table id="logsTable">
+            <thead>
+                <tr>
+                    <th>使用的 Key</th>
+                    <th>模型</th>
+                    <th>调用时间</th>
+                    <th>输入 Token</th>
+                    <th>输出 Token</th>
+                    <th>总 Token</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div class="pagination" id="pagination"></div>
     </div>
-
-    <table id="logsTable">
-        <thead>
-            <tr>
-                <th>使用的 Key</th>
-                <th>模型</th>
-                <th>调用时间</th>
-                <th>输入 Token</th>
-                <th>输出 Token</th>
-                <th>总 Token</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div class="pagination" id="pagination"></div>
 
     <script>
         let currentFilters = {

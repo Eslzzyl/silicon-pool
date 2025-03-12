@@ -8,6 +8,7 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
     <style>
         th::after {
             content: "";
@@ -30,29 +31,41 @@
             cursor: pointer;
         }
 
-        .sort-options {
+        .operation-container {
             display: flex;
-            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 1rem;
             align-items: center;
-            margin-bottom: 1rem;
             background-color: #f8fafc;
             padding: 1rem;
             border-radius: 8px;
+            margin-bottom: 1.5rem;
             border: 1px solid #e2e8f0;
         }
 
-        .sort-options label {
-            margin-right: 0.5rem;
+        .sort-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sort-label {
             font-weight: 500;
             color: #334155;
         }
 
-        .sort-options select {
+        .sort-select {
             padding: 0.5rem;
             border-radius: 4px;
             border: 1px solid #cbd5e1;
             background-color: white;
             min-width: 150px;
+        }
+
+        .button-group {
+            margin-left: auto;
+            display: flex;
+            gap: 0.5rem;
         }
 
         #keysTable .icon-button {
@@ -91,43 +104,61 @@
             border-radius: 4px;
             cursor: pointer;
         }
+
+        @media (max-width: 768px) {
+            .operation-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .sort-item {
+                justify-content: space-between;
+            }
+
+            .button-group {
+                margin: 0.5rem 0 0 0;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <h1>🔑 API Key 管理</h1>
+    <!-- 导航栏 -->
+    <nav id="navbar"></nav>
+
+    <div class="container"></div>
+    <h1>API Key 管理</h1>
 
     <div id="stats">
         📊 当前 Key 数量：<span id="keyCount">0</span> 个
         | 余额总量：¥ <span id="totalBalance">0</span>
     </div>
 
-    <div class="button-group">
-        <button class="primary" onclick="window.location.href='/'">🏠 返回主页</button>
-        <button class="secondary" onclick="window.location.href='/static/stats.html'">📊 统计分析</button>
-        <button class="secondary" onclick="window.location.href='/static/logs.html'">📝 调用日志</button>
-    </div>
-
-    <div class="button-group">
-        <button class="secondary" onclick="refreshKeys()">🔄 刷新所有密钥</button>
-    </div>
-
     <div id="message"></div>
 
-    <div class="sort-options">
-        <label for="sortField">排序字段:</label>
-        <select id="sortField" onchange="fetchKeys()">
-            <option value="add_time">添加时间</option>
-            <option value="balance">余额</option>
-            <option value="usage_count">使用次数</option>
-            <option value="enabled">启用状态</option>
-            <option value="key">Key 名</option>
-        </select>
-        <label for="sortOrder" style="margin-left: 1rem;">排序方向:</label>
-        <select id="sortOrder" onchange="fetchKeys()">
-            <option value="desc">降序</option>
-            <option value="asc">升序</option>
-        </select>
+    <div class="operation-container">
+        <div class="sort-item">
+            <span class="sort-label">排序字段:</span>
+            <select id="sortField" class="sort-select" onchange="fetchKeys()">
+                <option value="add_time">添加时间</option>
+                <option value="balance">余额</option>
+                <option value="usage_count">使用次数</option>
+                <option value="enabled">启用状态</option>
+                <option value="key">Key 名</option>
+            </select>
+        </div>
+        <div class="sort-item">
+            <span class="sort-label">排序方向:</span>
+            <select id="sortOrder" class="sort-select" onchange="fetchKeys()">
+                <option value="desc">降序</option>
+                <option value="asc">升序</option>
+            </select>
+        </div>
+        <div class="button-group">
+            <button class="primary" onclick="refreshKeys()">🔄 刷新所有密钥</button>
+        </div>
     </div>
 
     <table id="keysTable">
@@ -145,6 +176,7 @@
     </table>
 
     <div class="pagination" id="pagination"></div>
+    </div>
 
     <script>
         async function fetchKeys(page = 1) {
