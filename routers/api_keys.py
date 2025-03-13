@@ -149,7 +149,7 @@ async def import_keys(request: Request):
                 imported_count += 1
             else:
                 invalid_count += 1
-    
+
     # 导入后刷新缓存，确保大量导入的数据被写入数据库
     flush_cache()
 
@@ -202,10 +202,30 @@ async def refresh_keys():
 
 
 @router.get("/export_keys")
-async def export_keys():
-    cursor.execute("SELECT key FROM api_keys")
-    all_keys = cursor.fetchall()
-    keys = "\n".join(row[0] for row in all_keys)
+async def export_keys(format: str = "plain", sort: str = "balance_desc"):
+    sort_mapping = {
+        "balance_desc": "balance DESC",
+        "balance_asc": "balance ASC",
+        "alpha_asc": "key ASC",
+        "alpha_desc": "key DESC",
+    }
+
+    sort_clause = sort_mapping.get(sort, "balance DESC")
+
+    # 根据排序参数选择不同的查询SQL
+    if format == "withBalance":
+        cursor.execute(f"SELECT key, balance FROM api_keys ORDER BY {sort_clause}")
+        all_keys = cursor.fetchall()
+        keys = "\n".join(f"{row[0]} (¥{row[1]})" for row in all_keys)
+    else:
+        cursor.execute(f"SELECT key FROM api_keys ORDER BY {sort_clause}")
+        all_keys = cursor.fetchall()
+
+        if format == "comma":
+            keys = ",".join(row[0] for row in all_keys)
+        else:  # plain format
+            keys = "\n".join(row[0] for row in all_keys)
+
     headers = {"Content-Disposition": "attachment; filename=keys.txt"}
     return Response(content=keys, media_type="text/plain", headers=headers)
 

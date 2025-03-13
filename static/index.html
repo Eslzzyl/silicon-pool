@@ -63,6 +63,49 @@
         .cache-value {
             font-weight: 600;
         }
+
+        /* 导出控制区样式 */
+        .export-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .export-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .export-label {
+            font-weight: 500;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .export-select {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            background-color: white;
+            min-width: 180px;
+        }
+
+        @media (max-width: 768px) {
+            .export-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .export-item {
+                justify-content: space-between;
+            }
+        }
     </style>
 </head>
 
@@ -99,7 +142,28 @@
         <div class="button-group">
             <button class="primary" onclick="importKeys()">📥 导入 Key</button>
             <button class="secondary" onclick="refreshKeys()">🔄 刷新余额</button>
-            <button class="secondary" onclick="exportKeys()">📤 导出为 TXT</button>
+        </div>
+
+        <!-- 导出控制区 -->
+        <div class="export-controls">
+            <div class="export-item">
+                <span class="export-label">导出格式:</span>
+                <select id="exportFormat" class="export-select">
+                    <option value="plain">每行一个 Key</option>
+                    <option value="withBalance">每行一个 Key（显示余额）</option>
+                    <option value="comma">按逗号分隔</option>
+                </select>
+            </div>
+            <div class="export-item">
+                <span class="export-label">排序方式:</span>
+                <select id="exportSort" class="export-select">
+                    <option value="balance_desc">按余额从多到少</option>
+                    <option value="balance_asc">按余额从少到多</option>
+                    <option value="alpha_asc">按字典序升序</option>
+                    <option value="alpha_desc">按字典序降序</option>
+                </select>
+            </div>
+            <button class="secondary" style="margin-left: auto;" onclick="exportKeys()">📤 导出为 TXT</button>
         </div>
     </div>
 
@@ -119,7 +183,9 @@
         }
 
         function exportKeys() {
-            window.location.href = "/export_keys";
+            const format = document.getElementById('exportFormat').value;
+            const sort = document.getElementById('exportSort').value;
+            window.location.href = `/export_keys?format=${format}&sort=${sort}`;
         }
 
         // 从统计页加载每日和每月统计信息
