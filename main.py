@@ -5,7 +5,7 @@ import logging
 from uvicorn.config import LOGGING_CONFIG
 from contextlib import asynccontextmanager
 from db import init_db, db_cache
-from routers import api_keys, logs, config, completions, static, stats, auth
+from routers import api_keys, generate, logs, config, static, stats, auth
 
 # 配置日志格式
 LOGGING_CONFIG["formatters"]["default"]["fmt"] = (
@@ -52,7 +52,7 @@ app.mount("/static", StaticFiles(directory="static"))
 app.include_router(api_keys.router, tags=["API密钥管理"])
 app.include_router(logs.router, tags=["日志管理"])
 app.include_router(config.router, tags=["配置管理"])
-app.include_router(completions.router, tags=["API转发"])
+app.include_router(generate.router, tags=["API转发"])
 app.include_router(static.router, tags=["静态文件"])
 app.include_router(stats.router, tags=["统计数据"])
 app.include_router(auth.router, tags=["认证"])

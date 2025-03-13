@@ -219,6 +219,7 @@
                 if (endpoint === "chat_completions") endpoint = "对话";
                 if (endpoint === "completions") endpoint = "补全";
                 if (endpoint === "embeddings") endpoint = "嵌入";
+                if (endpoint === "images_generations") endpoint = "生图";
 
                 tr.innerHTML = `
                     <td class="key-cell" title="${log.used_key}">${maskKey(log.used_key)}</td>
