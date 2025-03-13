@@ -12,12 +12,14 @@
 ***
 
 一个用于管理硅基流动 API Key 的本地工具。支持以下功能：
+- 登录验证
 - API Key 的批量导入，自动过滤无效的 Key
 - API Key 的批量导出（导出为 txt）
 - 对 `/chat/completions`、`/embeddings`、`/completions`（通常用于 FIM 任务，如代码自动补全） 和 `/models` 接口的转发。其中 `/chat/completions` 和 `/completions` 支持流式响应和非流式响应
 - 转发时有多个 Key 选择策略：随机、余额最多优先、余额最少优先、添加时间最旧优先、添加时间最新优先、使用次数最少优先、使用次数最多优先。
 - 一个简单的 Web UI 用于集中管理 Key（见上方图）
 - Key 的批量余额刷新，自动删除用尽的 Key
+- 手动禁用或启用某些 Key
 - 模型调用日志记录
 - 自定义 API token 检查，仅当调用接口的客户端提供指定的 token 时才转发。
 

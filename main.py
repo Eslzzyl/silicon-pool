@@ -4,7 +4,7 @@ import uvicorn
 import logging
 from uvicorn.config import LOGGING_CONFIG
 from db import init_db
-from routers import api_keys, logs, config, completions, static, stats
+from routers import api_keys, logs, config, completions, static, stats, auth
 
 # 配置日志格式
 LOGGING_CONFIG["formatters"]["default"]["fmt"] = (
@@ -41,6 +41,7 @@ app.include_router(config.router, tags=["配置管理"])
 app.include_router(completions.router, tags=["API转发"])
 app.include_router(static.router, tags=["静态文件"])
 app.include_router(stats.router, tags=["统计数据"])
+app.include_router(auth.router, tags=["认证"])
 
 # 启动入口
 if __name__ == "__main__":

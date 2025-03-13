@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硅基 Key 池 - 设置</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
+    <style>
+        .settings-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .settings-card h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            margin-right: 20px; /* 为文本框右侧添加边距 */
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .api-settings-form {
+            margin-bottom: 1.5rem;
+        }
+
+        .api-settings-form .setting-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .api-settings-form label {
+            font-weight: 500;
+            color: #475569;
+            margin-right: 1rem;
+            min-width: 150px;
+        }
+
+        .api-settings-form select,
+        .api-settings-form input {
+            padding: 0.7rem;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            margin-right: 1rem; /* 添加右侧边距 */
+            flex: 1;
+            max-width: 300px;
+            min-width: 200px;
+        }
+
+        .api-settings-form button {
+            padding: 0.7rem 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .api-settings-form .setting-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .api-settings-form label {
+                margin-bottom: 0.5rem;
+            }
+            
+            .api-settings-form select,
+            .api-settings-form input {
+                width: 100%;
+                max-width: 100%;
+                margin-bottom: 0.5rem;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 导航栏 -->
+    <nav id="navbar"></nav>
+
+    <div class="container">
+        <h1>系统设置</h1>
+
+        <div id="message"></div>
+
+        <div class="settings-card">
+            <h2>API 调用设置</h2>
+            <form class="api-settings-form">
+                <div class="setting-row">
+                    <label for="callStrategy">调用策略：</label>
+                    <select id="callStrategy">
+                        <option value="random">随机选择</option>
+                        <option value="high">优先消耗余额最多</option>
+                        <option value="low">优先消耗余额最少</option>
+                        <option value="least_used">优先消耗使用次数最少</option>
+                        <option value="most_used">优先消耗使用次数最多</option>
+                        <option value="oldest">优先消耗添加时间最旧</option>
+                        <option value="newest">优先消耗添加时间最新</option>
+                    </select>
+                    <button type="button" class="primary" onclick="updateStrategy()">保存策略</button>
+                </div>
+                <div class="setting-row">
+                    <label for="customApiKey">自定义转发 API token：</label>
+                    <input type="password" id="customApiKey" placeholder="留空表示不使用">
+                    <button type="button" class="primary" onclick="updateCustomApiKey()">保存 token</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="settings-card">
+            <h2>管理员账户设置</h2>
+            <form id="credentialsForm">
+                <div class="form-group">
+                    <label for="username">新用户名</label>
+                    <input type="text" id="username" name="username" placeholder="输入新的用户名" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">新密码</label>
+                    <input type="password" id="password" name="password" placeholder="输入新的密码" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="再次输入新的密码" required>
+                </div>
+
+                <div class="settings-actions">
+                    <button type="submit" class="primary">保存更改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const credentialsForm = document.getElementById('credentialsForm');
+            
+            credentialsForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                // 验证密码是否一致
+                if (password !== confirmPassword) {
+                    showMessage('两次输入的密码不一致', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/update_credentials', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        showMessage('管理员凭据已成功更新，需要重新登录', 'success');
+                        // 清空表单
+                        credentialsForm.reset();
+                        
+                        // 3秒后登出
+                        setTimeout(() => {
+                            logout();
+                        }, 3000);
+                    } else {
+                        showMessage(data.detail || '更新凭据失败', 'error');
+                    }
+                } catch (error) {
+                    showMessage('请求失败，请稍后重试', 'error');
+                    console.error('更新凭据请求失败:', error);
+                }
+            });
+
+            // 加载调用策略与自定义 api_key
+            loadStrategy();
+            loadCustomApiKey();
+        });
+
+        async function loadStrategy() {
+            const response = await fetch("/config/strategy");
+            const data = await response.json();
+            document.getElementById("callStrategy").value = data.call_strategy;
+        }
+
+        async function updateStrategy() {
+            const select = document.getElementById("callStrategy");
+            const value = select.value;
+            const response = await fetch("/config/strategy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ call_strategy: value })
+            });
+            const data = await response.json();
+            showMessage(data.message, "success");
+        }
+
+        async function loadCustomApiKey() {
+            const response = await fetch("/config/custom_api_key");
+            const data = await response.json();
+            document.getElementById("customApiKey").value = data.custom_api_key;
+        }
+
+        async function updateCustomApiKey() {
+            const newKey = document.getElementById("customApiKey").value;
+            const response = await fetch("/config/custom_api_key", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ custom_api_key: newKey })
+            });
+            const data = await response.json();
+            showMessage(data.message, "success");
+        }
+    </script>
+</body>
+
+</html>

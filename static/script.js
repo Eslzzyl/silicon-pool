@@ -12,6 +12,38 @@ async function showMessage(text, type = 'success') {
 }
 
 /**
+ * 检查用户是否已认证，如未认证则重定向到登录页
+ */
+async function checkAuthentication() {
+    try {
+        const response = await fetch('/api/check_auth');
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+            window.location.href = '/static/login.html';
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('认证检查失败:', error);
+        window.location.href = '/static/login.html';
+        return false;
+    }
+}
+
+/**
+ * 退出登录
+ */
+async function logout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/static/login.html';
+    } catch (error) {
+        console.error('退出登录失败:', error);
+    }
+}
+
+/**
  * 获取系统统计数据
  */
 async function fetchStats() {

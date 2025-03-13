@@ -36,17 +36,6 @@
             font-size: 1rem;
             opacity: 1;
         }
-
-        .strategy-select {
-            margin: 1rem 0;
-            text-align: center;
-        }
-
-        .strategy-select select {
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #cbd5e1;
-        }
     </style>
 </head>
 
@@ -62,28 +51,10 @@
         <div id="stats">
             📊 当前 Key 数量：<span id="keyCount">0</span> 个
             | 余额总量：¥ <span id="totalBalance">0</span>
-        </div>
-
-        <div class="settings-container" style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
-            <div class="strategy-select">
-                <label for="callStrategy">调用策略：</label>
-                <select id="callStrategy" onchange="updateStrategy()">
-                    <option value="random">随机选择</option>
-                    <option value="high">优先消耗余额最多</option>
-                    <option value="low">优先消耗余额最少</option>
-                    <option value="least_used">优先消耗使用次数最少</option>
-                    <option value="most_used">优先消耗使用次数最多</option>
-                    <option value="oldest">优先消耗添加时间最旧</option>
-                    <option value="newest">优先消耗添加时间最新</option>
-                </select>
-            </div>
-            <div class="custom-key" style="text-align:center;">
-                <label for="customApiKey">自定义转发 API token：</label>
-                <input type="text" id="customApiKey" placeholder="留空表示不使用"
-                    style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px;">
-                <button class="primary" onclick="updateCustomApiKey()"
-                    style="padding:0.5rem 1rem; font-size:0.9rem; height:35px; line-height:1; margin-left: 1rem;">保存</button>
-            </div>
+            | 今日调用次数：<span id="todayCalls">0</span> 次
+            | 今日消耗 Token：<span id="todayTokens">0</span> 个
+            | 本月调用次数：<span id="monthCalls">0</span> 次
+            | 本月消耗 Token：<span id="monthTokens">0</span> 个
         </div>
 
         <textarea id="keys" placeholder="请每行输入一个 API Key..."></textarea>
@@ -114,46 +85,43 @@
             window.location.href = "/export_keys";
         }
 
-        async function loadStrategy() {
-            const response = await fetch("/config/strategy");
-            const data = await response.json();
-            document.getElementById("callStrategy").value = data.call_strategy;
+        // 从统计页加载每日和每月统计信息
+        async function loadDailyStats() {
+            try {
+                const response = await fetch('/api/stats/daily');
+                const data = await response.json();
+
+                // 更新统计摘要
+                const totalCalls = data.calls.reduce((a, b) => a + b, 0);
+                const totalInputTokens = data.input_tokens.reduce((a, b) => a + b, 0);
+                const totalOutputTokens = data.output_tokens.reduce((a, b) => a + b, 0);
+                document.getElementById('todayCalls').textContent = totalCalls;
+                document.getElementById('todayTokens').textContent = totalInputTokens + totalOutputTokens;
+            } catch (error) {
+                console.error('Failed to load daily stats:', error);
+            }
         }
 
-        async function updateStrategy() {
-            const select = document.getElementById("callStrategy");
-            const value = select.value;
-            const response = await fetch("/config/strategy", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ call_strategy: value })
-            });
-            const data = await response.json();
-            showMessage(data.message, "success");
+        async function loadMonthlyStats() {
+            try {
+                const response = await fetch('/api/stats/monthly');
+                const data = await response.json();
+
+                // 更新统计摘要
+                const totalCalls = data.calls.reduce((a, b) => a + b, 0);
+                const totalInputTokens = data.input_tokens.reduce((a, b) => a + b, 0);
+                const totalOutputTokens = data.output_tokens.reduce((a, b) => a + b, 0);
+                document.getElementById('monthCalls').textContent = totalCalls;
+                document.getElementById('monthTokens').textContent = totalInputTokens + totalOutputTokens;
+            } catch (error) {
+                console.error('Failed to load monthly stats:', error);
+            }
         }
 
-        async function loadCustomApiKey() {
-            const response = await fetch("/config/custom_api_key");
-            const data = await response.json();
-            document.getElementById("customApiKey").value = data.custom_api_key;
-        }
-
-        async function updateCustomApiKey() {
-            const newKey = document.getElementById("customApiKey").value;
-            const response = await fetch("/config/custom_api_key", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ custom_api_key: newKey })
-            });
-            const data = await response.json();
-            showMessage(data.message, "success");
-        }
-
-        // 初始化加载调用策略与自定义 api_key
-        loadStrategy();
-        loadCustomApiKey();
-
+        // 初始化加载
         fetchStats();
+        loadDailyStats();
+        loadMonthlyStats();
     </script>
 </body>
 
