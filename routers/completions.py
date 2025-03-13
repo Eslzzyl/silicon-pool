@@ -5,7 +5,7 @@ import config
 import json
 import time
 import aiohttp
-from db import conn, cursor, log_completion
+from db import cursor, log_completion, update_api_key
 from utils import select_api_key, check_and_remove_key
 
 router = APIRouter()
@@ -31,10 +31,9 @@ async def chat_completions(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail="没有可用的api-key")
 
     # 增加使用计数
-    cursor.execute(
-        "UPDATE api_keys SET usage_count = usage_count + 1 WHERE key = ?", (selected,)
-    )
-    conn.commit()
+    update_api_key({"usage_count": cursor.execute(
+        "SELECT usage_count FROM api_keys WHERE key = ?", (selected,)
+    ).fetchone()[0] + 1}, selected)
 
     # 使用选定的key转发请求到BASE_URL
     forward_headers = dict(request.headers)
@@ -86,6 +85,7 @@ async def chat_completions(request: Request, background_tasks: BackgroundTasks):
                 log_completion(
                     selected,
                     model,
+                    "chat_completions",  # 添加接口类型
                     call_time_stamp,
                     prompt_tokens,
                     completion_tokens,
@@ -126,6 +126,7 @@ async def chat_completions(request: Request, background_tasks: BackgroundTasks):
                     log_completion(
                         selected,
                         model,
+                        "chat_completions",  # 添加接口类型
                         call_time_stamp,
                         prompt_tokens,
                         completion_tokens,
@@ -155,18 +156,46 @@ async def embeddings(request: Request, background_tasks: BackgroundTasks):
     if not selected:
         raise HTTPException(status_code=500, detail="没有可用的api-key")
 
+    # 增加使用计数
+    update_api_key({"usage_count": cursor.execute(
+        "SELECT usage_count FROM api_keys WHERE key = ?", (selected,)
+    ).fetchone()[0] + 1}, selected)
+
     forward_headers = dict(request.headers)
     forward_headers["Authorization"] = f"Bearer {selected}"
 
     try:
+        req_body = await request.body()
+        req_json = await request.json()
+        model = req_json.get("model", "unknown")
+        call_time_stamp = time.time()
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{BASE_URL}/v1/embeddings",
                 headers=forward_headers,
-                data=await request.body(),
+                data=req_body,
                 timeout=30,
             ) as resp:
                 data = await resp.json()
+                # 获取token使用情况
+                usage = data.get("usage", {})
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                # embeddings通常没有completion_tokens
+                completion_tokens = 0
+                total_tokens = usage.get("total_tokens", 0)
+
+                # 记录完成调用
+                log_completion(
+                    selected,
+                    model,
+                    "embeddings",  # 添加接口类型
+                    call_time_stamp,
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                )
+
                 # 后台检查key余额
                 background_tasks.add_task(check_and_remove_key, selected)
                 return JSONResponse(content=data, status_code=resp.status)
@@ -191,10 +220,9 @@ async def completions(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail="没有可用的api-key")
 
     # 增加使用计数
-    cursor.execute(
-        "UPDATE api_keys SET usage_count = usage_count + 1 WHERE key = ?", (selected,)
-    )
-    conn.commit()
+    update_api_key({"usage_count": cursor.execute(
+        "SELECT usage_count FROM api_keys WHERE key = ?", (selected,)
+    ).fetchone()[0] + 1}, selected)
 
     # 使用选定的key转发请求到BASE_URL
     forward_headers = dict(request.headers)
@@ -246,6 +274,7 @@ async def completions(request: Request, background_tasks: BackgroundTasks):
                 log_completion(
                     selected,
                     model,
+                    "completions",  # 添加接口类型
                     call_time_stamp,
                     prompt_tokens,
                     completion_tokens,
@@ -286,6 +315,7 @@ async def completions(request: Request, background_tasks: BackgroundTasks):
                     log_completion(
                         selected,
                         model,
+                        "completions",  # 添加接口类型
                         call_time_stamp,
                         prompt_tokens,
                         completion_tokens,

@@ -3,7 +3,8 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 import logging
 from uvicorn.config import LOGGING_CONFIG
-from db import init_db
+from contextlib import asynccontextmanager
+from db import init_db, db_cache
 from routers import api_keys, logs, config, completions, static, stats, auth
 
 # 配置日志格式
@@ -23,13 +24,26 @@ LOGGING_CONFIG["loggers"]["root"] = {
 logging.config.dictConfig(LOGGING_CONFIG)
 logging.basicConfig(level=logging.INFO)
 
+
+# 创建生命周期管理器
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时执行的代码
+    init_db()
+    yield
+    # 关闭时执行的代码
+    logging.info("应用程序关闭中，确保缓存数据写入数据库...")
+    db_cache.flush()
+    logging.info("缓存已刷新")
+
+
 # 创建FastAPI应用
 app = FastAPI(
-    title="Silicon Pool API", description="硅基流动 API Key 池管理工具", version="0.1.0"
+    title="Silicon Pool API",
+    description="硅基流动 API Key 池管理工具",
+    version="0.1.0",
+    lifespan=lifespan,
 )
-
-# 初始化数据库
-init_db()
 
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory="static"))

@@ -3,7 +3,7 @@ import random
 import config
 import aiohttp
 import logging
-from db import conn, cursor
+from db import cursor, delete_api_key
 
 
 async def validate_key_async(api_key: str):
@@ -115,9 +115,9 @@ async def check_and_remove_key(key: str):
         logger.info(f"Key validation successful: {key[:8]}*** - Balance: {balance}")
         if float(balance) <= 0:
             logger.warning(f"Removing key {key[:8]}*** due to zero balance")
-            cursor.execute("DELETE FROM api_keys WHERE key = ?", (key,))
-            conn.commit()
+            # 使用缓存系统删除
+            delete_api_key(key)
     else:
         logger.warning(f"Invalid key detected: {key[:8]}*** - Removing from pool")
-        cursor.execute("DELETE FROM api_keys WHERE key = ?", (key,))
-        conn.commit()
+        # 使用缓存系统删除
+        delete_api_key(key)
