@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
 import asyncio
-from db import conn, cursor
+from db import cursor, update_api_key, delete_api_key, flush_cache
 from utils import validate_key_async, validate_key_format, clean_key
 
 router = APIRouter()
@@ -60,14 +60,12 @@ async def refresh_single_key(request: Request):
         valid, balance = await validate_key_async(key)
 
         if valid and float(balance) > 0:
-            cursor.execute(
-                "UPDATE api_keys SET balance = ? WHERE key = ?", (balance, key)
-            )
-            conn.commit()
+            # 使用缓存系统更新
+            update_api_key({"balance": balance}, key)
             return JSONResponse({"message": f"密钥更新成功，当前余额: ¥{balance}"})
         else:
-            cursor.execute("DELETE FROM api_keys WHERE key = ?", (key,))
-            conn.commit()
+            # 使用缓存系统删除
+            delete_api_key(key)
             return JSONResponse({"message": "密钥已失效或余额为0，已从池中移除"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"刷新密钥失败: {str(e)}")
@@ -82,8 +80,8 @@ async def delete_key(request: Request):
         raise HTTPException(status_code=400, detail="未提供API密钥")
 
     try:
-        cursor.execute("DELETE FROM api_keys WHERE key = ?", (key,))
-        conn.commit()
+        # 使用缓存系统删除
+        delete_api_key(key)
         return JSONResponse({"message": "密钥已成功删除"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除密钥失败: {str(e)}")
@@ -102,10 +100,8 @@ async def toggle_key(request: Request):
         raise HTTPException(status_code=400, detail="未提供启用状态")
 
     try:
-        cursor.execute(
-            "UPDATE api_keys SET enabled = ? WHERE key = ?", (1 if enabled else 0, key)
-        )
-        conn.commit()
+        # 使用缓存系统更新
+        update_api_key({"enabled": 1 if enabled else 0}, key)
         status = "启用" if enabled else "禁用"
         return JSONResponse({"message": f"密钥已成功{status}"})
     except Exception as e:
@@ -153,6 +149,9 @@ async def import_keys(request: Request):
                 imported_count += 1
             else:
                 invalid_count += 1
+    
+    # 导入后刷新缓存，确保大量导入的数据被写入数据库
+    flush_cache()
 
     return JSONResponse(
         {
@@ -177,14 +176,15 @@ async def refresh_keys():
     removed = 0
     for key, (valid, balance) in zip(all_keys, results):
         if valid and float(balance) > 0:
-            cursor.execute(
-                "UPDATE api_keys SET balance = ? WHERE key = ?", (balance, key)
-            )
+            # 使用缓存系统更新
+            update_api_key({"balance": balance}, key)
         else:
-            cursor.execute("DELETE FROM api_keys WHERE key = ?", (key,))
+            # 使用缓存系统删除
+            delete_api_key(key)
             removed += 1
 
-    conn.commit()
+    # 刷新缓存，确保大量更新操作被写入数据库
+    flush_cache()
 
     # 计算新的总余额
     cursor.execute("SELECT COALESCE(SUM(balance), 0) FROM api_keys")

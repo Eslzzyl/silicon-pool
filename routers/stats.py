@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from db import cursor
+from db import cursor, get_cache_stats
 import time
 from datetime import datetime, timedelta
 
@@ -173,3 +173,9 @@ async def get_monthly_stats():
             "model_tokens": model_tokens,
         }
     )
+
+
+@router.get("/api/stats/cache")
+async def get_cache_stats_route():
+    """获取缓存系统统计信息"""
+    return JSONResponse(get_cache_stats())

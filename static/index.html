@@ -36,6 +36,33 @@
             font-size: 1rem;
             opacity: 1;
         }
+
+        .cache-stats {
+            padding: 1rem;
+            background-color: #dbeeff;
+            border: 2px solid #4a92eb;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .cache-stats .title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1e3a8a;
+        }
+
+        .cache-item {
+            display: inline-block;
+            margin: 0 0.6rem;
+            color: #1e40af;
+        }
+
+        .cache-value {
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -55,6 +82,16 @@
             | 今日消耗 Token：<span id="todayTokens">0</span> 个
             | 本月调用次数：<span id="monthCalls">0</span> 次
             | 本月消耗 Token：<span id="monthTokens">0</span> 个
+        </div>
+
+        <div id="cacheStats" class="cache-stats">
+            <div class="title">💾 缓存系统状态</div>
+            <div class="cache-item">待插入: <span id="pendingInserts" class="cache-value">0</span></div>
+            <div class="cache-item">待更新: <span id="pendingUpdates" class="cache-value">0</span></div>
+            <div class="cache-item">待删除: <span id="pendingDeletes" class="cache-value">0</span></div>
+            <div class="cache-item">总缓存任务: <span id="totalPending" class="cache-value">0</span></div>
+            <div class="cache-item">刷新次数: <span id="flushes" class="cache-value">0</span></div>
+            <div class="cache-item">上次刷新: <span id="lastFlush" class="cache-value">-</span></div>
         </div>
 
         <textarea id="keys" placeholder="请每行输入一个 API Key..."></textarea>
@@ -118,10 +155,52 @@
             }
         }
 
+        // 加载缓存统计信息
+        async function loadCacheStats() {
+            try {
+                const response = await fetch('/api/stats/cache');
+                const data = await response.json();
+
+                document.getElementById('pendingInserts').textContent = data.pending_inserts;
+                document.getElementById('pendingUpdates').textContent = data.pending_updates;
+                document.getElementById('pendingDeletes').textContent = data.pending_deletes;
+                document.getElementById('totalPending').textContent = data.total_pending;
+                document.getElementById('flushes').textContent = data.flushes;
+
+                // 格式化上次刷新时间为"xx秒之前"
+                if (data.last_flush) {
+                    const lastFlushTime = data.last_flush * 1000;
+                    const now = new Date().getTime();
+                    const secondsAgo = Math.floor((now - lastFlushTime) / 1000);
+
+                    if (secondsAgo < 60) {
+                        document.getElementById('lastFlush').textContent = `${secondsAgo} 秒之前`;
+                    } else if (secondsAgo < 3600) {
+                        const minutes = Math.floor(secondsAgo / 60);
+                        document.getElementById('lastFlush').textContent = `${minutes} 分钟之前`;
+                    } else {
+                        const hours = Math.floor(secondsAgo / 3600);
+                        document.getElementById('lastFlush').textContent = `${hours} 小时之前`;
+                    }
+                } else {
+                    document.getElementById('lastFlush').textContent = '从未';
+                }
+            } catch (error) {
+                console.error('Failed to load cache stats:', error);
+            }
+        }
+
+        // 每10秒刷新一次缓存统计数据
+        function startCacheStatsRefresh() {
+            loadCacheStats();
+            setInterval(loadCacheStats, 10000);
+        }
+
         // 初始化加载
         fetchStats();
         loadDailyStats();
         loadMonthlyStats();
+        startCacheStatsRefresh();
     </script>
 </body>
 

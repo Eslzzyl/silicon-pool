@@ -18,7 +18,7 @@ async function checkAuthentication() {
     try {
         const response = await fetch('/api/check_auth');
         const data = await response.json();
-        
+
         if (!data.authenticated) {
             window.location.href = '/static/login.html';
             return false;
@@ -50,7 +50,7 @@ async function fetchStats() {
     const response = await fetch("/stats");
     const data = await response.json();
     document.getElementById("keyCount").textContent = data.key_count;
-    document.getElementById("totalBalance").textContent = data.total_balance;
+    document.getElementById("totalBalance").textContent = parseFloat(data.total_balance).toFixed(2);
 }
 
 /**

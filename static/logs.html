@@ -96,6 +96,15 @@
                     <!-- 模型选项将动态加载 -->
                 </select>
             </div>
+            <div class="filter-item">
+                <span class="filter-label">接口过滤:</span>
+                <select id="endpointFilter" class="filter-select" onchange="applyFilters()">
+                    <option value="all">所有接口</option>
+                    <option value="chat_completions">对话</option>
+                    <option value="completions">补全</option>
+                    <option value="embeddings">嵌入</option>
+                </select>
+            </div>
             <div class="button-group">
                 <button class="primary" onclick="fetchLogs()">🔄 刷新日志</button>
                 <button class="danger" onclick="clearLogs()">🗑️ 清空日志</button>
@@ -106,6 +115,7 @@
             <thead>
                 <tr>
                     <th>使用的 Key</th>
+                    <th>接口</th>
                     <th>模型</th>
                     <th>调用时间</th>
                     <th>输入 Token</th>
@@ -123,7 +133,8 @@
         let currentFilters = {
             page: 1,
             dateFilter: 'all',
-            model: 'all'
+            model: 'all',
+            endpoint: 'all'
         };
 
         // 加载模型列表
@@ -156,11 +167,13 @@
         function applyFilters() {
             const dateFilter = document.getElementById('dateFilter').value;
             const model = document.getElementById('modelFilter').value;
+            const endpoint = document.getElementById('endpointFilter').value;
 
             currentFilters = {
                 page: 1, // 重置到第一页
                 dateFilter: dateFilter,
-                model: model
+                model: model,
+                endpoint: endpoint
             };
 
             fetchLogs();
@@ -179,7 +192,7 @@
                 </tr>
             `;
 
-            const url = `/logs?page=${currentFilters.page}&date_filter=${currentFilters.dateFilter}&model=${currentFilters.model}`;
+            const url = `/logs?page=${currentFilters.page}&date_filter=${currentFilters.dateFilter}&model=${currentFilters.model}&endpoint=${currentFilters.endpoint}`;
             const response = await fetch(url);
             const data = await response.json();
             const tbody = document.querySelector("#logsTable tbody");
@@ -188,7 +201,7 @@
             if (data.logs.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding: 2rem; color: #64748b; text-align: center;">
+                        <td colspan="7" style="padding: 2rem; color: #64748b; text-align: center;">
                             暂无符合条件的日志记录
                         </td>
                     </tr>
@@ -200,8 +213,16 @@
             data.logs.forEach(log => {
                 const tr = document.createElement("tr");
                 const dt = new Date(log.call_time * 1000);
+
+                // 格式化接口名称显示
+                let endpoint = log.api_endpoint || "-";
+                if (endpoint === "chat_completions") endpoint = "对话";
+                if (endpoint === "completions") endpoint = "补全";
+                if (endpoint === "embeddings") endpoint = "嵌入";
+
                 tr.innerHTML = `
                     <td class="key-cell" title="${log.used_key}">${maskKey(log.used_key)}</td>
+                    <td>${endpoint}</td>
                     <td>${log.model}</td>
                     <td>${dt.toLocaleString()}</td>
                     <td>${log.input_tokens}</td>
