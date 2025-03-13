@@ -139,10 +139,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showMessage('登录成功，正在跳转...', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
+                    window.location.href = '/';
                 } else {
                     showMessage(data.detail || '登录失败，请检查用户名和密码', 'error');
                 }
