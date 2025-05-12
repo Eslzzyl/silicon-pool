@@ -1,0 +1,12 @@
+[project]
+name = "silicon-pool"
+version = "0.5.3"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.11.12",
+    "fastapi>=0.115.8",
+    "nuitka>=2.6.7",
+    "uvicorn>=0.34.0",
+]

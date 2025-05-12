@@ -1,0 +1,19 @@
+version: '4.0'
+
+services:
+  app:
+    build: .
+    ports:
+      - "7898:7898"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+    restart: on-failure:5
+    # 修改为on-failure策略，并限制最大重启次数为5次，防止无限重启
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硅基 Key 池 - 调用统计</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .chart-wrapper {
+            background-color: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .chart-wrapper:hover {
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 300px !important;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            position: absolute;
+            top: calc(50% - 25px);
+            left: calc(50% - 25px);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            min-height: 300px;
+        }
+
+        .no-data-message {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+            <h1>📊 调用统计分析</h1>
+            <button class="primary" onclick="refreshAllCharts()">🔄 刷新数据</button>
+        </div>
+
+        <div id="stats">
+            📊 今日调用次数：<span id="todayCalls">0</span> 次
+            | 今日消耗 Token：<span id="todayTokens">0</span> 个
+            | 本月调用次数：<span id="monthCalls">0</span> 次
+            | 本月消耗 Token：<span id="monthTokens">0</span> 个
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h3 class="chart-title">今日调用频率</h3>
+                <div class="chart-container">
+                    <div id="hourlyCallsLoading" class="loading-spinner"></div>
+                    <canvas id="hourlyCallsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">今日 Token 消耗</h3>
+                <div class="chart-container">
+                    <div id="hourlyTokensLoading" class="loading-spinner"></div>
+                    <canvas id="hourlyTokensChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">今日模型使用分布</h3>
+                <div class="chart-container">
+                    <div id="dailyModelsLoading" class="loading-spinner"></div>
+                    <canvas id="dailyModelsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">本月模型使用分布</h3>
+                <div class="chart-container">
+                    <div id="monthlyModelsLoading" class="loading-spinner"></div>
+                    <canvas id="monthlyModelsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">本月调用频率</h3>
+                <div class="chart-container">
+                    <div id="dailyCallsLoading" class="loading-spinner"></div>
+                    <canvas id="dailyCallsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <h3 class="chart-title">本月 Token 消耗</h3>
+                <div class="chart-container">
+                    <div id="dailyTokensLoading" class="loading-spinner"></div>
+                    <canvas id="dailyTokensChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 图表对象
+        let hourlyCallsChart = null;
+        let hourlyTokensChart = null;
+        let dailyCallsChart = null;
+        let dailyTokensChart = null;
+        let dailyModelsChart = null;
+        let monthlyModelsChart = null;
+
+        // 图表颜色
+        const colors = {
+            calls: 'rgba(68, 122, 238, 0.8)',
+            inputTokens: 'rgba(100, 149, 237, 0.7)',
+            outputTokens: 'rgba(25, 25, 112, 0.7)'
+        };
+
+        // 模型颜色映射
+        const modelColorMap = {};
+
+        // 为特定模型生成或获取颜色
+        function getModelColor(modelName) {
+            // 如果模型已有指定颜色，则使用已有颜色
+            if (modelColorMap[modelName]) {
+                return modelColorMap[modelName];
+            }
+
+            // 为新模型生成颜色
+            const hue = Math.random() * 360;
+            const saturation = 60 + Math.random() * 20;
+            const lightness = 80 + Math.random() * 10;
+            const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+            // 存储颜色映射
+            modelColorMap[modelName] = color;
+            return color;
+        }
+
+        // 为饼图获取模型颜色
+        function getModelColors(modelLabels) {
+            return modelLabels.map(label => getModelColor(label));
+        }
+
+        // 加载日小时统计数据
+        async function loadDailyStats() {
+            document.getElementById('hourlyCallsLoading').style.display = 'block';
+            document.getElementById('hourlyTokensLoading').style.display = 'block';
+            document.getElementById('dailyModelsLoading').style.display = 'block';
+
+            try {
+                const response = await fetch('/api/stats/daily');
+                const data = await response.json();
+
+                // 更新统计摘要
+                const totalCalls = data.calls.reduce((a, b) => a + b, 0);
+                const totalInputTokens = data.input_tokens.reduce((a, b) => a + b, 0);
+                const totalOutputTokens = data.output_tokens.reduce((a, b) => a + b, 0);
+                document.getElementById('todayCalls').textContent = totalCalls;
+                document.getElementById('todayTokens').textContent = totalInputTokens + totalOutputTokens;
+
+                // 格式化小时标签
+                const hourLabels = data.labels.map(hour => `${hour}:00`);
+
+                // 绘制调用频率图表
+                renderHourlyCallsChart(hourLabels, data.calls);
+
+                // 绘制Token消耗图表
+                renderHourlyTokensChart(hourLabels, data.input_tokens, data.output_tokens);
+
+                // 绘制今日模型使用饼图
+                renderDailyModelsChart(data.model_labels, data.model_tokens);
+            } catch (error) {
+                console.error('Failed to load daily stats:', error);
+                showNoDataMessage('hourlyCallsChart');
+                showNoDataMessage('hourlyTokensChart');
+                showNoDataMessage('dailyModelsChart');
+            } finally {
+                document.getElementById('hourlyCallsLoading').style.display = 'none';
+                document.getElementById('hourlyTokensLoading').style.display = 'none';
+                document.getElementById('dailyModelsLoading').style.display = 'none';
+            }
+        }
+
+        // 加载月度统计数据
+        async function loadMonthlyStats() {
+            document.getElementById('dailyCallsLoading').style.display = 'block';
+            document.getElementById('dailyTokensLoading').style.display = 'block';
+            document.getElementById('monthlyModelsLoading').style.display = 'block';
+
+            try {
+                const response = await fetch('/api/stats/monthly');
+                const data = await response.json();
+
+                // 更新统计摘要
+                const totalCalls = data.calls.reduce((a, b) => a + b, 0);
+                const totalInputTokens = data.input_tokens.reduce((a, b) => a + b, 0);
+                const totalOutputTokens = data.output_tokens.reduce((a, b) => a + b, 0);
+                document.getElementById('monthCalls').textContent = totalCalls;
+                document.getElementById('monthTokens').textContent = totalInputTokens + totalOutputTokens;
+
+                // 格式化日期标签
+                const dayLabels = data.labels.map(day => `${day}日`);
+
+                // 绘制调用频率图表
+                renderDailyCallsChart(dayLabels, data.calls);
+
+                // 绘制Token消耗图表
+                renderDailyTokensChart(dayLabels, data.input_tokens, data.output_tokens);
+
+                // 绘制本月模型使用饼图
+                renderMonthlyModelsChart(data.model_labels, data.model_tokens);
+            } catch (error) {
+                console.error('Failed to load monthly stats:', error);
+                showNoDataMessage('dailyCallsChart');
+                showNoDataMessage('dailyTokensChart');
+                showNoDataMessage('monthlyModelsChart');
+            } finally {
+                document.getElementById('dailyCallsLoading').style.display = 'none';
+                document.getElementById('dailyTokensLoading').style.display = 'none';
+                document.getElementById('monthlyModelsLoading').style.display = 'none';
+            }
+        }
+
+        // 绘制今日模型使用饼图
+        function renderDailyModelsChart(labels, data) {
+            const ctx = document.getElementById('dailyModelsChart').getContext('2d');
+
+            if (dailyModelsChart) {
+                dailyModelsChart.destroy();
+            }
+
+            if (!labels || labels.length === 0 || data.every(value => value === 0)) {
+                showNoDataMessage('dailyModelsChart');
+                return;
+            }
+
+            const pieColors = getModelColors(labels);
+
+            dailyModelsChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: pieColors,
+                        borderColor: 'white',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} tokens (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 绘制本月模型使用饼图
+        function renderMonthlyModelsChart(labels, data) {
+            const ctx = document.getElementById('monthlyModelsChart').getContext('2d');
+
+            if (monthlyModelsChart) {
+                monthlyModelsChart.destroy();
+            }
+
+            if (!labels || labels.length === 0 || data.every(value => value === 0)) {
+                showNoDataMessage('monthlyModelsChart');
+                return;
+            }
+
+            const pieColors = getModelColors(labels);
+
+            monthlyModelsChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: pieColors,
+                        borderColor: 'white',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} tokens (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 绘制小时调用频率图表
+        function renderHourlyCallsChart(labels, data) {
+            const ctx = document.getElementById('hourlyCallsChart').getContext('2d');
+
+            if (hourlyCallsChart) {
+                hourlyCallsChart.destroy();
+            }
+
+            if (data.every(value => value === 0)) {
+                showNoDataMessage('hourlyCallsChart');
+                return;
+            }
+
+            hourlyCallsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '调用次数',
+                        data: data,
+                        backgroundColor: colors.calls,
+                        borderColor: colors.calls,
+                        borderWidth: 2,
+                        pointBackgroundColor: 'white',
+                        pointBorderColor: colors.calls,
+                        pointBorderWidth: 2,
+                        tension: 0.5,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 绘制小时Token消耗图表
+        function renderHourlyTokensChart(labels, inputData, outputData) {
+            const ctx = document.getElementById('hourlyTokensChart').getContext('2d');
+
+            if (hourlyTokensChart) {
+                hourlyTokensChart.destroy();
+            }
+
+            if (inputData.every(value => value === 0) && outputData.every(value => value === 0)) {
+                showNoDataMessage('hourlyTokensChart');
+                return;
+            }
+
+            hourlyTokensChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '输入 Tokens',
+                            data: inputData,
+                            backgroundColor: colors.inputTokens,
+                            borderColor: colors.inputTokens,
+                            borderWidth: 1
+                        },
+                        {
+                            label: '输出 Tokens',
+                            data: outputData,
+                            backgroundColor: colors.outputTokens,
+                            borderColor: colors.outputTokens,
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 绘制日调用频率图表
+        function renderDailyCallsChart(labels, data) {
+            const ctx = document.getElementById('dailyCallsChart').getContext('2d');
+
+            if (dailyCallsChart) {
+                dailyCallsChart.destroy();
+            }
+
+            if (data.every(value => value === 0)) {
+                showNoDataMessage('dailyCallsChart');
+                return;
+            }
+
+            dailyCallsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '调用次数',
+                        data: data,
+                        backgroundColor: colors.calls,
+                        borderColor: colors.calls,
+                        borderWidth: 2,
+                        pointBackgroundColor: 'white',
+                        pointBorderColor: colors.calls,
+                        pointBorderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 绘制日Token消耗图表
+        function renderDailyTokensChart(labels, inputData, outputData) {
+            const ctx = document.getElementById('dailyTokensChart').getContext('2d');
+
+            if (dailyTokensChart) {
+                dailyTokensChart.destroy();
+            }
+
+            if (inputData.every(value => value === 0) && outputData.every(value => value === 0)) {
+                showNoDataMessage('dailyTokensChart');
+                return;
+            }
+
+            dailyTokensChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '输入 Tokens',
+                            data: inputData,
+                            backgroundColor: colors.inputTokens,
+                            borderColor: colors.inputTokens,
+                            borderWidth: 1
+                        },
+                        {
+                            label: '输出 Tokens',
+                            data: outputData,
+                            backgroundColor: colors.outputTokens,
+                            borderColor: colors.outputTokens,
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 显示无数据消息
+        function showNoDataMessage(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const parent = canvas.parentElement;
+
+            const existingMessage = parent.querySelector('.no-data-message');
+            if (!existingMessage) {
+                const message = document.createElement('div');
+                message.className = 'no-data-message';
+                message.textContent = '暂无数据';
+                parent.appendChild(message);
+            }
+        }
+
+        // 刷新所有图表
+        function refreshAllCharts() {
+            loadDailyStats();
+            loadMonthlyStats();
+        }
+
+        // 页面加载时初始化图表
+        document.addEventListener('DOMContentLoaded', function () {
+            loadDailyStats();
+            loadMonthlyStats();
+        });
+    </script>
+</body>
+
+</html>

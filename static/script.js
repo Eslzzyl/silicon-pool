@@ -51,7 +51,9 @@ async function fetchStats() {
     const data = await response.json();
     document.getElementById("totalKeyCount").textContent = data.total_key_count;
     document.getElementById("positiveBalanceCount").textContent = data.positive_balance_count;
+    document.getElementById("zeroBalanceCount").textContent = data.zero_balance_count;
     document.getElementById("totalBalance").textContent = Number(data.total_balance).toFixed(2);
+    console.log("Stats loaded:", data); // 添加日志以便调试
 }
 
 /**

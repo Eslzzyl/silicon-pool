@@ -115,9 +115,29 @@
             background-color: #f1f5f9;
         }
 
+        /* 添加无效key的样式 */
+        tr.invalid-key {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        tr.invalid-key:hover {
+            background-color: #fecaca;
+        }
+
         .zero-balance-badge {
             background-color: #e2e8f0;
             color: #475569;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            display: inline-block;
+            margin-left: 0.5rem;
+        }
+        
+        .invalid-key-badge {
+            background-color: #fee2e2;
+            color: #991b1b;
             padding: 0.2rem 0.5rem;
             border-radius: 4px;
             font-size: 0.8rem;
@@ -153,7 +173,8 @@
 
     <div id="stats">
         📊 当前 Key 数量：<span id="totalKeyCount">0</span> 个
-        | 其中有余额：<span id="positiveBalanceCount">0</span> 个
+        | 有余额：<span id="positiveBalanceCount">0</span> 个
+        | 余额用尽：<span id="zeroBalanceCount">0</span> 个
         | 余额总量：¥ <span id="totalBalance">0</span>
     </div>
 
@@ -182,6 +203,7 @@
             <select id="balanceFilter" class="sort-select" onchange="fetchKeys()">
                 <option value="positive">有余额的 Key</option>
                 <option value="zero">余额用尽的 Key</option>
+                <option value="invalid">无效的 Key</option>
                 <option value="all">所有 Key</option>
             </select>
         </div>
@@ -242,9 +264,12 @@
                     const tr = document.createElement("tr");
                     const dt = new Date(key.add_time * 1000);
 
-                    // 检查余额是否为0，为0则添加特殊样式
+                    // 检查余额是否为0或密钥是否无效，添加相应样式
                     if (key.balance <= 0) {
                         tr.classList.add("zero-balance");
+                    }
+                    if (key.is_invalid) {
+                        tr.classList.add("invalid-key");
                     }
 
                     // 根据key的启用状态设置显示
@@ -256,9 +281,11 @@
                         ? `<span class="icon-button" onclick="toggleKey('${key.key}', false)" title="禁用">🚫</span>`
                         : `<span class="icon-button" onclick="toggleKey('${key.key}', true)" title="启用">✅</span>`;
 
-                    // 余额显示，为0时添加标记
+                    // 余额显示，为0时添加标记，无效时添加标记
                     let balanceDisplay = `¥ ${key.balance.toFixed(2)}`;
-                    if (key.balance <= 0) {
+                    if (key.is_invalid) {
+                        balanceDisplay += '<span class="invalid-key-badge">无效密钥</span>';
+                    } else if (key.balance <= 0) {
                         balanceDisplay += '<span class="zero-balance-badge">可用于免费模型</span>';
                     }
 

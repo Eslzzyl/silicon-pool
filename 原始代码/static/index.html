@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硅基 Key 池</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
+    <style>
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            height: 200px;
+            padding: 1rem;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            margin: 1rem 0;
+            resize: vertical;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        textarea::placeholder {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #64748b;
+            font-size: 1rem;
+            opacity: 1;
+        }
+
+        .operation-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .export-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .export-label {
+            font-weight: 500;
+            color: #334155;
+        }
+
+        .export-select {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            background-color: white;
+            min-width: 150px;
+        }
+
+        .button-group {
+            margin-left: auto;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .operation-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .export-item {
+                justify-content: space-between;
+            }
+
+            .button-group {
+                margin: 0.5rem 0 0 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 导航栏 -->
+    <nav id="navbar"></nav>
+
+    <div class="container">
+        <h1>主页</h1>
+
+        <div id="message"></div>
+
+        <div id="stats">
+            📊 当前 Key 数量：<span id="totalKeyCount">0</span> 个
+            | 其中有余额：<span id="positiveBalanceCount">0</span> 个
+            | 余额总量：¥ <span id="totalBalance">0</span>
+            | 今日调用次数：<span id="todayCalls">0</span> 次
+            | 今日消耗 Token：<span id="todayTokens">0</span> 个
+        </div>
+
+        <textarea id="keys" placeholder="请每行输入一个 API Key，支持空行，支持逗号分割，支持 Key 后面有括号"></textarea>
+
+        <div class="button-group">
+            <button class="primary" onclick="importKeys()">📥 导入 Key</button>
+            <button class="secondary" onclick="refreshKeys()">🔄 刷新余额</button>
+        </div>
+
+        <div class="operation-container">
+            <div class="export-item">
+                <span class="export-label">导出格式:</span>
+                <select id="exportFormat" class="export-select">
+                    <option value="line">每行一个 Key</option>
+                    <option value="line_with_balance">每行一个 Key (显示余额)</option>
+                    <option value="csv">按逗号分隔</option>
+                </select>
+            </div>
+            <div class="export-item">
+                <span class="export-label">排序方式:</span>
+                <select id="sortOrder" class="export-select">
+                    <option value="balance_desc">余额从多到少</option>
+                    <option value="balance_asc">余额从少到多</option>
+                    <option value="key_asc">字典序升序</option>
+                    <option value="key_desc">字典序降序</option>
+                </select>
+            </div>
+            <div class="export-item">
+                <span class="export-label">导出筛选:</span>
+                <select id="balanceFilter" class="export-select">
+                    <option value="all">导出所有 Key</option>
+                    <option value="positive">仅导出有余额的 Key</option>
+                    <option value="zero">仅导出余额用尽的 Key</option>
+                </select>
+            </div>
+            <div class="button-group">
+                <button class="secondary" onclick="exportKeys()">📤 导出为 TXT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function importKeys() {
+            document.getElementById("message").style.display = 'block';
+            document.getElementById("message").className = "info";
+            document.getElementById("message").textContent = "正在导入，请稍候...";
+            const keys = document.getElementById("keys").value;
+            const response = await fetch("/import_keys", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ keys })
+            });
+            const data = await response.json();
+            showMessage(data.message, response.ok ? "success" : "error");
+            fetchStats();
+        }
+
+        function exportKeys() {
+            const format = document.getElementById('exportFormat').value;
+            const sortOrder = document.getElementById('sortOrder').value;
+            const balanceFilter = document.getElementById('balanceFilter').value;
+            window.location.href = `/export_keys?format=${format}&sort=${sortOrder}&filter=${balanceFilter}`;
+        }
+
+        // 从统计页加载每日统计信息
+        async function loadDailyStats() {
+            try {
+                const response = await fetch('/api/stats/daily');
+                const data = await response.json();
+
+                // 更新统计摘要
+                const totalCalls = data.calls.reduce((a, b) => a + b, 0);
+                const totalInputTokens = data.input_tokens.reduce((a, b) => a + b, 0);
+                const totalOutputTokens = data.output_tokens.reduce((a, b) => a + b, 0);
+                document.getElementById('todayCalls').textContent = totalCalls;
+                document.getElementById('todayTokens').textContent = totalInputTokens + totalOutputTokens;
+            } catch (error) {
+                console.error('Failed to load daily stats:', error);
+            }
+        }
+
+        // 初始化加载
+        fetchStats();
+        loadDailyStats();
+    </script>
+</body>
+
+</html>

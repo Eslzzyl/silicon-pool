@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硅基 Key 池 - 模型列表</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+    <script src="/static/navbar.js"></script>
+    <style>
+        .search-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #search {
+            padding: 0.8rem;
+            width: 80%;
+            max-width: 600px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        #search:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .models-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .model-tag {
+            background-color: #e0e7ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .model-tag:hover {
+            background-color: #a5b4fc;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .copy-notification {
+            display: none;
+        }
+
+        .no-results {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 18px;
+            color: #64748b;
+            padding: 2rem;
+        }
+
+        .key-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px auto;
+            text-align: center;
+            max-width: 600px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 2px solid #f0ad4e;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 导航栏 -->
+    <nav id="navbar"></nav>
+
+    <div class="container">
+        <h1>可用模型列表</h1>
+
+        <div id="message" class="info">
+            点击任意模型标签可以将模型 ID 复制到剪贴板
+        </div>
+
+        <div id="key-warning" class="key-warning" style="display: none;">
+            您的 Key 池中没有可用的 API Key，请先 <a href="/">添加 API Key</a> 后再查看模型列表。
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="search" placeholder="过滤模型...">
+        </div>
+        <div class="models-container" id="models">
+            <!-- 模型将通过JavaScript动态加载 -->
+        </div>
+        <div class="no-results" id="no-results" style="display: none;">
+            没有找到匹配的模型
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modelsContainer = document.getElementById('models');
+            const searchInput = document.getElementById('search');
+            const noResultsMessage = document.getElementById('no-results');
+            const keyWarning = document.getElementById('key-warning');
+            let allModels = [];
+
+            // 默认消息提示
+            const defaultMessage = "点击任意模型标签可以将模型 ID 复制到剪贴板";
+
+            // 显示默认消息
+            function showDefaultMessage() {
+                const messageEl = document.getElementById("message");
+                messageEl.className = "info";
+                messageEl.style.display = "block";
+                messageEl.textContent = defaultMessage;
+            }
+
+            // 初始显示默认消息
+            showDefaultMessage();
+
+            // 检查是否有可用的 API Key
+            async function checkAPIKeys() {
+                try {
+                    const response = await fetch('/api/keys?page=1');
+                    if (!response.ok) {
+                        throw new Error('获取 API Key 数据失败');
+                    }
+                    const data = await response.json();
+
+                    // 如果有可用的 API Key，则获取模型列表
+                    if (data.total > 0) {
+                        keyWarning.style.display = 'none';
+                        fetchModels();
+                    } else {
+                        // 如果没有可用的 API Key，则显示警告信息
+                        keyWarning.style.display = 'block';
+                        modelsContainer.innerHTML = '';
+                        searchInput.disabled = true;
+                    }
+                } catch (error) {
+                    console.error('Error checking API keys:', error);
+                    showMessage('检查 API Key 失败，请稍后重试', 'error');
+                }
+            }
+
+            // 获取模型列表
+            async function fetchModels() {
+                try {
+                    const response = await fetch('/v1/models');
+                    if (!response.ok) {
+                        throw new Error('获取模型数据失败');
+                    }
+                    const data = await response.json();
+                    allModels = data.data || [];
+                    renderModels(allModels);
+                } catch (error) {
+                    console.error('Error fetching models:', error);
+                    showMessage('加载模型失败，请稍后重试', 'error');
+                    modelsContainer.innerHTML = '';
+                }
+            }
+
+            // 渲染模型标签
+            function renderModels(models) {
+                modelsContainer.innerHTML = '';
+
+                if (models.length === 0) {
+                    noResultsMessage.style.display = 'block';
+                    return;
+                }
+
+                noResultsMessage.style.display = 'none';
+
+                models.forEach(model => {
+                    const modelTag = document.createElement('div');
+                    modelTag.className = 'model-tag';
+                    modelTag.textContent = model.id;
+                    modelTag.title = `点击复制模型ID: ${model.id}`;
+
+                    modelTag.addEventListener('click', function () {
+                        copyToClipboard(model.id);
+                    });
+
+                    modelsContainer.appendChild(modelTag);
+                });
+            }
+
+            // 复制到剪贴板
+            async function copyToClipboard(text) {
+                try {
+                    // 首先检查 navigator.clipboard 是否可用
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        // 备用方法：使用临时文本区域来复制文本
+                        const textarea = document.createElement('textarea');
+                        textarea.value = text;
+                        textarea.style.position = 'fixed'; // 防止滚动到底部
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                    }
+
+                    // 显示复制成功信息
+                    showMessage(`模型 ID "${text}" 已成功复制到剪贴板`, 'success');
+
+                    // 3秒后恢复默认提示
+                    setTimeout(() => {
+                        showDefaultMessage();
+                    }, 3000);
+                } catch (err) {
+                    console.error('复制失败:', err);
+                    showMessage('复制失败，请手动复制', 'error');
+
+                    // 3秒后恢复默认提示
+                    setTimeout(() => {
+                        showDefaultMessage();
+                    }, 3000);
+                }
+            }
+
+            // 过滤模型
+            function filterModels(searchTerm) {
+                searchTerm = searchTerm.toLowerCase();
+                const filteredModels = allModels.filter(model =>
+                    model.id.toLowerCase().includes(searchTerm)
+                );
+                renderModels(filteredModels);
+            }
+
+            // 搜索输入监听
+            searchInput.addEventListener('input', function () {
+                filterModels(this.value);
+            });
+
+            // 页面加载时先检查 API Key
+            checkAPIKeys();
+        });
+    </script>
+</body>
+
+</html>

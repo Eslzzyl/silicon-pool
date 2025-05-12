@@ -1,0 +1,105 @@
+{
+  "model": "THUDM/GLM-4-9B-0414",
+  "total_tests": 10,
+  "success_count": 10,
+  "success_rate": 100.0,
+  "error_rate": 0.0,
+  "avg_response_time": 5.848045110702515,
+  "avg_token_rate": 44.56054676606965,
+  "avg_tokens_in": 242.3,
+  "avg_tokens_out": 267.4,
+  "total_test_time": 76.54965686798096,
+  "timestamp": "2025-05-12 13:35:01",
+  "detailed_results": [
+    {
+      "test_id": 1,
+      "success": true,
+      "time": 1.3745167255401611,
+      "tokens_in": 247,
+      "tokens_out": 51,
+      "token_rate": 37.103950102868254,
+      "error": null
+    },
+    {
+      "test_id": 2,
+      "success": true,
+      "time": 14.661445140838623,
+      "tokens_in": 241,
+      "tokens_out": 759,
+      "token_rate": 51.768430240607636,
+      "error": null
+    },
+    {
+      "test_id": 3,
+      "success": true,
+      "time": 5.732496500015259,
+      "tokens_in": 233,
+      "tokens_out": 327,
+      "token_rate": 57.04320970786979,
+      "error": null
+    },
+    {
+      "test_id": 4,
+      "success": true,
+      "time": 2.262126922607422,
+      "tokens_in": 247,
+      "tokens_out": 105,
+      "token_rate": 46.416493677097755,
+      "error": null
+    },
+    {
+      "test_id": 5,
+      "success": true,
+      "time": 6.599452257156372,
+      "tokens_in": 245,
+      "tokens_out": 365,
+      "token_rate": 55.30762035655279,
+      "error": null
+    },
+    {
+      "test_id": 6,
+      "success": true,
+      "time": 1.4278621673583984,
+      "tokens_in": 242,
+      "tokens_out": 56,
+      "token_rate": 39.21947179509785,
+      "error": null
+    },
+    {
+      "test_id": 7,
+      "success": true,
+      "time": 12.631985664367676,
+      "tokens_in": 242,
+      "tokens_out": 408,
+      "token_rate": 32.29896002422541,
+      "error": null
+    },
+    {
+      "test_id": 8,
+      "success": true,
+      "time": 1.8026618957519531,
+      "tokens_in": 235,
+      "tokens_out": 87,
+      "token_rate": 48.26196204902266,
+      "error": null
+    },
+    {
+      "test_id": 9,
+      "success": true,
+      "time": 7.8685219287872314,
+      "tokens_in": 244,
+      "tokens_out": 407,
+      "token_rate": 51.72508937300891,
+      "error": null
+    },
+    {
+      "test_id": 10,
+      "success": true,
+      "time": 4.119381904602051,
+      "tokens_in": 247,
+      "tokens_out": 109,
+      "token_rate": 26.460280334345413,
+      "error": null
+    }
+  ]
+}
