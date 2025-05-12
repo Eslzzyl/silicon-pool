@@ -153,6 +153,10 @@
         let dailyTokensChart = null;
         let dailyModelsChart = null;
         let monthlyModelsChart = null;
+        
+        // 请求状态跟踪
+        let dailyStatsLoading = false;
+        let monthlyStatsLoading = false;
 
         // 图表颜色
         const colors = {
@@ -161,8 +165,17 @@
             outputTokens: 'rgba(25, 25, 112, 0.7)'
         };
 
-        // 模型颜色映射
-        const modelColorMap = {};
+        // 模型颜色映射 - 预先定义常见模型颜色以减少计算
+        const modelColorMap = {
+            'gpt-4': 'hsl(210, 80%, 85%)',
+            'gpt-4-turbo': 'hsl(210, 80%, 80%)',
+            'gpt-3.5-turbo': 'hsl(180, 70%, 80%)',
+            'claude-3': 'hsl(150, 70%, 80%)',
+            'claude-2': 'hsl(120, 70%, 80%)',
+            'qwen': 'hsl(60, 70%, 80%)',
+            'llama': 'hsl(30, 70%, 80%)',
+            'gemini': 'hsl(330, 70%, 80%)'
+        };
 
         // 为特定模型生成或获取颜色
         function getModelColor(modelName) {
@@ -171,10 +184,14 @@
                 return modelColorMap[modelName];
             }
 
-            // 为新模型生成颜色
-            const hue = Math.random() * 360;
-            const saturation = 60 + Math.random() * 20;
-            const lightness = 80 + Math.random() * 10;
+            // 为新模型生成颜色 - 使用确定性算法以确保相同模型始终获得相同颜色
+            let hash = 0;
+            for (let i = 0; i < modelName.length; i++) {
+                hash = modelName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = hash % 360;
+            const saturation = 60 + (hash % 20);
+            const lightness = 80 + (hash % 10);
             const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 
             // 存储颜色映射
@@ -187,16 +204,40 @@
             return modelLabels.map(label => getModelColor(label));
         }
 
+        // 防抖函数 - 避免频繁刷新
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+        
         // 加载日小时统计数据
         async function loadDailyStats() {
+            // 避免重复请求
+            if (dailyStatsLoading) return;
+            dailyStatsLoading = true;
+            
             document.getElementById('hourlyCallsLoading').style.display = 'block';
             document.getElementById('hourlyTokensLoading').style.display = 'block';
             document.getElementById('dailyModelsLoading').style.display = 'block';
 
             try {
-                const response = await fetch('/api/stats/daily');
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+                
+                const response = await fetch('/api/stats/daily', {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
-
+                
                 // 更新统计摘要
                 const totalCalls = data.calls.reduce((a, b) => a + b, 0);
                 const totalInputTokens = data.input_tokens.reduce((a, b) => a + b, 0);
@@ -229,12 +270,27 @@
 
         // 加载月度统计数据
         async function loadMonthlyStats() {
+            // 避免重复请求
+            if (monthlyStatsLoading) return;
+            monthlyStatsLoading = true;
+            
             document.getElementById('dailyCallsLoading').style.display = 'block';
             document.getElementById('dailyTokensLoading').style.display = 'block';
             document.getElementById('monthlyModelsLoading').style.display = 'block';
 
             try {
-                const response = await fetch('/api/stats/monthly');
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+                
+                const response = await fetch('/api/stats/monthly', {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
 
                 // 更新统计摘要
@@ -264,6 +320,8 @@
                 document.getElementById('dailyCallsLoading').style.display = 'none';
                 document.getElementById('dailyTokensLoading').style.display = 'none';
                 document.getElementById('monthlyModelsLoading').style.display = 'none';
+                // 重置加载状态
+                monthlyStatsLoading = false;
             }
         }
 
@@ -603,11 +661,24 @@
             }
         }
 
-        // 刷新所有图表
-        function refreshAllCharts() {
+        // 显示无数据消息
+        function showNoDataMessage(chartId) {
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('暂无数据或加载失败', canvas.width / 2, canvas.height / 2);
+        }
+        
+        // 刷新所有图表 - 添加防抖
+        const refreshAllCharts = debounce(function() {
             loadDailyStats();
             loadMonthlyStats();
-        }
+        }, 300); // 300ms防抖延迟
 
         // 页面加载时初始化图表
         document.addEventListener('DOMContentLoaded', function () {

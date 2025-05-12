@@ -8,16 +8,30 @@ cursor = conn.cursor()
 
 def init_db():
     """初始化数据库表结构"""
+    # 启用外键约束
+    cursor.execute("PRAGMA foreign_keys = ON")
+    
+    # 启用WAL模式提高并发性能
+    cursor.execute("PRAGMA journal_mode = WAL")
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS api_keys (
         key TEXT PRIMARY KEY,
         add_time REAL,
         balance REAL,
         usage_count INTEGER,
-        enabled INTEGER DEFAULT 1
+        enabled INTEGER DEFAULT 1,
+        is_invalid INTEGER DEFAULT 0
     )
     """)
     conn.commit()
+    
+    # 检查是否需要添加is_invalid列
+    cursor.execute("PRAGMA table_info(api_keys)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'is_invalid' not in columns:
+        cursor.execute("ALTER TABLE api_keys ADD COLUMN is_invalid INTEGER DEFAULT 0")
+        conn.commit()
 
     # 创建日志表以记录API调用
     cursor.execute("""
@@ -33,6 +47,12 @@ def init_db():
     )
     """)
     conn.commit()
+    
+    # 为logs表添加索引以提高查询性能
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_call_time ON logs(call_time)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_model ON logs(model)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_endpoint ON logs(endpoint)")
+    conn.commit()
 
     # 创建会话表以存储用户会话
     cursor.execute("""
@@ -42,6 +62,10 @@ def init_db():
         created_at REAL
     )
     """)
+    conn.commit()
+    
+    # 为sessions表添加索引
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expiry_time)")
     conn.commit()
 
 

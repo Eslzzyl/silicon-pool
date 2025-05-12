@@ -1,13 +1,43 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from db import cursor
+from db import cursor, conn
 import time
 from datetime import datetime, timedelta
+import functools
+import asyncio
 
 router = APIRouter()
 
+# 缓存装饰器
+def cache_with_timeout(timeout_seconds=60):
+    """带有超时的缓存装饰器"""
+    cache = {}
+    
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            # 生成缓存键
+            key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
+            
+            # 检查缓存是否存在且未过期
+            if key in cache:
+                result, timestamp = cache[key]
+                if time.time() - timestamp < timeout_seconds:
+                    return result
+            
+            # 执行原始函数
+            result = await func(*args, **kwargs)
+            
+            # 更新缓存
+            cache[key] = (result, time.time())
+            
+            return result
+        return wrapper
+    return decorator
+
 
 @router.get("/api/stats/daily")
+@cache_with_timeout(timeout_seconds=60)  # 缓存60秒
 async def get_daily_stats():
     """获取当天按小时统计的API调用数据"""
     # 获取今天的开始时间戳
@@ -21,11 +51,14 @@ async def get_daily_stats():
     input_tokens_by_hour = {hour: 0 for hour in hours}
     output_tokens_by_hour = {hour: 0 for hour in hours}
 
-    # 查询调用次数
+    # 使用单个查询获取所有数据，减少数据库交互次数
     cursor.execute(
         """
-        SELECT strftime('%H', datetime(call_time, 'unixepoch', 'localtime')) as hour,
-               COUNT(*) as call_count
+        SELECT 
+            strftime('%H', datetime(call_time, 'unixepoch', 'localtime')) as hour,
+            COUNT(*) as call_count,
+            SUM(input_tokens) as total_input,
+            SUM(output_tokens) as total_output
         FROM logs
         WHERE call_time >= ? AND call_time < ?
         GROUP BY hour
@@ -36,24 +69,8 @@ async def get_daily_stats():
     for row in cursor.fetchall():
         hour = int(row[0])
         calls_by_hour[hour] = row[1]
-
-    # 查询token消耗
-    cursor.execute(
-        """
-        SELECT strftime('%H', datetime(call_time, 'unixepoch', 'localtime')) as hour,
-               SUM(input_tokens) as total_input,
-               SUM(output_tokens) as total_output
-        FROM logs
-        WHERE call_time >= ? AND call_time < ?
-        GROUP BY hour
-        """,
-        (start_timestamp, end_timestamp),
-    )
-
-    for row in cursor.fetchall():
-        hour = int(row[0])
-        input_tokens_by_hour[hour] = row[1]
-        output_tokens_by_hour[hour] = row[2]
+        input_tokens_by_hour[hour] = row[2] or 0  # 防止NULL值
+        output_tokens_by_hour[hour] = row[3] or 0  # 防止NULL值
 
     # 查询模型使用情况
     cursor.execute(
@@ -63,6 +80,7 @@ async def get_daily_stats():
         WHERE call_time >= ? AND call_time < ?
         GROUP BY model
         ORDER BY tokens DESC
+        LIMIT 10  -- 限制返回的模型数量，提高性能
         """,
         (start_timestamp, end_timestamp),
     )
@@ -87,6 +105,7 @@ async def get_daily_stats():
 
 
 @router.get("/api/stats/monthly")
+@cache_with_timeout(timeout_seconds=300)  # 缓存5分钟，月度数据变化较慢
 async def get_monthly_stats():
     """获取当月按天统计的API调用数据"""
     # 获取当月第一天
@@ -110,11 +129,14 @@ async def get_monthly_stats():
     input_tokens_by_day = {day: 0 for day in days}
     output_tokens_by_day = {day: 0 for day in days}
 
-    # 查询调用次数
+    # 使用单个查询获取所有数据，减少数据库交互次数
     cursor.execute(
         """
-        SELECT strftime('%d', datetime(call_time, 'unixepoch', 'localtime')) as day,
-               COUNT(*) as call_count
+        SELECT 
+            strftime('%d', datetime(call_time, 'unixepoch', 'localtime')) as day,
+            COUNT(*) as call_count,
+            SUM(input_tokens) as total_input,
+            SUM(output_tokens) as total_output
         FROM logs
         WHERE call_time >= ? AND call_time < ?
         GROUP BY day
@@ -125,24 +147,8 @@ async def get_monthly_stats():
     for row in cursor.fetchall():
         day = int(row[0])
         calls_by_day[day] = row[1]
-
-    # 查询token消耗
-    cursor.execute(
-        """
-        SELECT strftime('%d', datetime(call_time, 'unixepoch', 'localtime')) as day,
-               SUM(input_tokens) as total_input,
-               SUM(output_tokens) as total_output
-        FROM logs
-        WHERE call_time >= ? AND call_time < ?
-        GROUP BY day
-        """,
-        (start_timestamp, end_timestamp),
-    )
-
-    for row in cursor.fetchall():
-        day = int(row[0])
-        input_tokens_by_day[day] = row[1]
-        output_tokens_by_day[day] = row[2]
+        input_tokens_by_day[day] = row[2] or 0  # 防止NULL值
+        output_tokens_by_day[day] = row[3] or 0  # 防止NULL值
 
     # 查询模型使用情况
     cursor.execute(
@@ -152,6 +158,7 @@ async def get_monthly_stats():
         WHERE call_time >= ? AND call_time < ?
         GROUP BY model
         ORDER BY tokens DESC
+        LIMIT 10  -- 限制返回的模型数量，提高性能
         """,
         (start_timestamp, end_timestamp),
     )

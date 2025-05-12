@@ -138,6 +138,7 @@
                         <option value="most_used">优先消耗使用次数最多</option>
                         <option value="oldest">优先消耗添加时间最旧</option>
                         <option value="newest">优先消耗添加时间最新</option>
+                        <option value="round_robin">轮询</option>
                     </select>
                     <button type="button" class="primary" onclick="updateStrategy()">保存策略</button>
                 </div>
@@ -148,6 +149,19 @@
                 </div>
                 <div class="info-text" style="margin-left: 150px; margin-bottom: 10px; color: #64748b; font-size: 0.9rem;">
                     注意：设置为0表示不自动刷新，建议设置较长间隔以避免频繁API调用
+                </div>
+                <div class="setting-row">
+                    <label for="rpmLimit">RPM：</label>
+                    <input type="number" id="rpmLimit" min="0" placeholder="每分钟请求数限制">
+                    <button type="button" class="primary" onclick="updateRpmLimit()">保存 RPM</button>
+                </div>
+                <div class="setting-row">
+                    <label for="tpmLimit">TPM：</label>
+                    <input type="number" id="tpmLimit" min="0" placeholder="每分钟处理令牌数限制">
+                    <button type="button" class="primary" onclick="updateTpmLimit()">保存 TPM</button>
+                </div>
+                <div class="info-text" style="margin-left: 150px; margin-bottom: 10px; color: #64748b; font-size: 0.9rem;">
+                    保存AI模型每分钟调用数和处理Token数量
                 </div>
                 <div class="setting-row">
                     <label for="customApiKey">转发 API token：</label>
@@ -192,7 +206,21 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const credentialsForm = document.getElementById('credentialsForm');
+                    const credentialsForm = document.getElementById('credentialsForm');
+                    
+                    // 加载RPM和TPM设置
+                    loadRpmTpmSettings();
+                    
+                    // 添加输入框聚焦事件处理
+                    const rpmInput = document.getElementById('rpmLimit');
+                    rpmInput.addEventListener('focus', function() {
+                        this.select();
+                    });
+                    
+                    const tpmInput = document.getElementById('tpmLimit');
+                    tpmInput.addEventListener('focus', function() {
+                        this.select();
+                    });
 
             credentialsForm.addEventListener('submit', async function (e) {
                 e.preventDefault();
@@ -239,6 +267,7 @@
             loadCustomApiKey();
             loadFreeModelApiKey();
             loadRefreshInterval();
+            // 注意：loadRpmTpmSettings() 已在前面调用过，不需要重复调用
         });
 
         async function loadStrategy() {
@@ -344,6 +373,8 @@
                     body: JSON.stringify({ free_model_api_key: newKey })
                 });
 
+
+
                 const data = await response.json();
 
                 if (response.ok) {
@@ -354,6 +385,66 @@
             } catch (error) {
                 showMessage('更新失败，请稍后重试', 'error');
                 console.error('更新免费模型 API token 失败:', error);
+            }
+        }
+
+        // 加载RPM和TPM设置
+        async function loadRpmTpmSettings() {
+            try {
+                const response = await fetch("/config/rpm_tpm_limits");
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('rpmLimit').value = data.rpm_limit || '';
+                    document.getElementById('tpmLimit').value = data.tpm_limit || '';
+                } else {
+                    console.error('加载RPM和TPM设置失败');
+                }
+            } catch (error) {
+                console.error('加载RPM和TPM设置失败:', error);
+            }
+        }
+
+        // 更新RPM限制
+        async function updateRpmLimit() {
+            const rpmLimit = document.getElementById('rpmLimit').value;
+            try {
+                const response = await fetch("/config/rpm_limit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rpm_limit: rpmLimit })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showMessage(data.message || 'RPM限制已更新', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(`更新失败: ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`更新失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 更新TPM限制
+        async function updateTpmLimit() {
+            const tpmLimit = document.getElementById('tpmLimit').value;
+            try {
+                const response = await fetch("/config/tpm_limit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tpm_limit: tpmLimit })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showMessage(data.message || 'TPM限制已更新', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(`更新失败: ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`更新失败: ${error.message}`, 'error');
             }
         }
     </script>
