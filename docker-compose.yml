@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  silicon-pool:
+    build: .
+    ports:
+      - "7898:7898"
+    volumes:
+      - ./:/app
+    restart: always
